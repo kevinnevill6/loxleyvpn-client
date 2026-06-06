@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25.0 FATAL_ERROR)
 
-set(PROJECT AmneziaVPN)
+set(PROJECT LoxleyVPN)
 project(${PROJECT})
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
