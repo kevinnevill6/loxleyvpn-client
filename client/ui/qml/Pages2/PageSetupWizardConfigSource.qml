@@ -45,7 +45,7 @@ PageType {
                 Layout.rightMargin: 16
                 Layout.leftMargin: 16
 
-                headerText: qsTr("Connection")
+                headerText: qsTr("LoxleyVPN")
 
                 actionButtonImage: isVisible ? "qrc:/images/controls/more-vertical.svg" : ""
                 actionButtonFunction: function() {
@@ -245,7 +245,7 @@ PageType {
                 Layout.alignment: Qt.AlignHCenter
                 implicitHeight: 32
 
-                visible: Qt.platform.os !== "ios" && !IsMacOsNeBuild
+                visible: false
 
                 defaultColor: AmneziaStyle.color.transparent
                 hoveredColor: AmneziaStyle.color.translucentWhite
@@ -265,13 +265,9 @@ PageType {
     }
 
     property list<QtObject> variants: [
-        amneziaVpn,
-        selfHostVpn,
-        backupRestore,
         fileOpen,
         qrScan,
-        restorePurchases,
-        siteLink
+        backupRestore
     ]
     
     QtObject {

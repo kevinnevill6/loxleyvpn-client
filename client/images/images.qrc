@@ -5,6 +5,7 @@
     <qresource prefix="/images">
         <file>amneziaBigLogo.png</file>
         <file>AmneziaVPN.png</file>
+        <file>loxleyvpnLogoLockup.png</file>
         <file>controls/alert-circle.svg</file>
         <file>controls/amnezia.svg</file>
         <file>controls/app.svg</file>
@@ -71,4 +72,3 @@
         <file>controls/monitor.svg</file>
     </qresource>
 </RCC>
-

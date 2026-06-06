@@ -23,12 +23,16 @@ PageType {
 
         Image {
             id: image
-            source: "qrc:/images/amneziaBigLogo.png"
+            property real logoWidth: Math.max(220, Math.min(root.width - 64, 360))
+
+            source: "qrc:/images/loxleyvpnLogoLockup.png"
 
             Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             Layout.topMargin: 32 + PageController.safeAreaTopMargin
-            Layout.preferredWidth: 360
-            Layout.preferredHeight: 287
+            Layout.preferredWidth: logoWidth
+            Layout.preferredHeight: logoWidth / 3
+
+            fillMode: Image.PreserveAspectFit
         }
 
         BasicButtonType {
