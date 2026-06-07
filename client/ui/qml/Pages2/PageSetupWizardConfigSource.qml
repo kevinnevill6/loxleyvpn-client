@@ -19,6 +19,7 @@ PageType {
 
     property bool guestMode: false
     property bool russianBypass: true
+    property bool sortAscending: true
     property string emailText: ""
     property string statusText: ""
     property string toastText: ""
@@ -164,15 +165,15 @@ PageType {
         gradient: Gradient {
             GradientStop {
                 position: 0
-                color: "#081C16"
+                color: "#103F2E"
             }
             GradientStop {
-                position: 0.42
-                color: "#091523"
+                position: 0.48
+                color: "#0C2A22"
             }
             GradientStop {
                 position: 1
-                color: "#03060B"
+                color: "#061016"
             }
         }
     }
@@ -184,15 +185,15 @@ PageType {
             orientation: Gradient.Horizontal
             GradientStop {
                 position: 0
-                color: "#02050A"
+                color: "#07120F"
             }
             GradientStop {
-                position: 0.64
-                color: "#0B1F18"
+                position: 0.58
+                color: "#163F2B"
             }
             GradientStop {
                 position: 1
-                color: "#12334A"
+                color: "#244E35"
             }
         }
     }
@@ -277,7 +278,7 @@ PageType {
                     LoxleyButton {
                         width: Math.min(parent.width, 190)
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "Пропустить"
+                        text: "Позже"
                         secondary: true
                         onClicked: root.enterGuestMode()
                     }
@@ -287,7 +288,7 @@ PageType {
                     width: parent.width
                     text: root.statusText
                     visible: text.length > 0
-                    color: "#9BD4FF"
+                    color: "#BDEB7B"
                     font.pixelSize: 13
                     wrapMode: Text.WordWrap
                     horizontalAlignment: Text.AlignHCenter
@@ -303,7 +304,7 @@ PageType {
         Flickable {
             id: appScroll
             anchors.fill: parent
-            anchors.topMargin: 64 + PageController.safeAreaTopMargin
+            anchors.topMargin: 42 + PageController.safeAreaTopMargin
             anchors.bottomMargin: root.bottomNavHeight + root.bottomNavSafeMargin
             contentWidth: width
             contentHeight: pageColumn.implicitHeight + 34
@@ -343,7 +344,7 @@ PageType {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 0
             radius: 0
-            color: "#111922"
+            color: "#0D1816"
             border.color: "transparent"
             border.width: 0
 
@@ -388,8 +389,8 @@ PageType {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: root.bottomNavHeight + root.bottomNavSafeMargin + 12
         radius: 18
-        color: "#245D86"
-        border.color: "#5E9ED0"
+        color: "#2E6F4E"
+        border.color: "#87C86C"
         opacity: toastTimer.running ? 1 : 0
         visible: opacity > 0
 
@@ -422,7 +423,7 @@ PageType {
 
         Column {
             width: parent.width
-            spacing: 24
+            spacing: 18
 
             Item {
                 width: parent.width
@@ -460,9 +461,9 @@ PageType {
             Rectangle {
                 width: parent.width
                 radius: 30
-                color: "#1A2634"
+                color: "#173326"
                 opacity: 0.96
-                border.color: "#465769"
+                border.color: "#496D4C"
                 border.width: 1
                 implicitHeight: locationRow.implicitHeight + 30
 
@@ -485,7 +486,7 @@ PageType {
                         Text {
                             width: parent.width
                             text: "Выбранная локация"
-                            color: "#AEB8C7"
+                            color: "#C5D7BF"
                             font.pixelSize: 15
                             elide: Text.ElideRight
                         }
@@ -509,103 +510,32 @@ PageType {
 
             Item {
                 width: parent.width
-                height: 190
+                height: 116
             }
 
             Text {
                 width: parent.width
                 text: ConnectionController.isConnected ? "Вы подключены" : "Вы не подключены"
                 color: "#F7FBFF"
-                font.pixelSize: 22
+                font.pixelSize: 21
                 font.weight: Font.DemiBold
                 horizontalAlignment: Text.AlignHCenter
             }
 
-            Rectangle {
-                width: Math.min(parent.width - 84, 310)
-                height: 82
+            VpnToggle {
+                width: Math.min(parent.width - 74, 318)
                 anchors.horizontalCenter: parent.horizontalCenter
-                radius: 41
-                color: "#10141B"
-
-                Rectangle {
-                    width: parent.width / 2 - 8
-                    height: parent.height - 16
-                    radius: height / 2
-                    anchors.verticalCenter: parent.verticalCenter
-                    x: ConnectionController.isConnected ? parent.width / 2 : 8
-                    color: ConnectionController.isConnected ? "#1FD38E" : "#526A89"
-
-                    Behavior on x {
-                        NumberAnimation {
-                            duration: 160
-                            easing.type: Easing.OutCubic
-                        }
-                    }
-                }
-
-                Row {
-                    anchors.fill: parent
-                    anchors.margins: 8
-
-                    Item {
-                        width: parent.width / 2
-                        height: parent.height
-
-                        Rectangle {
-                            width: 42
-                            height: 42
-                            radius: 21
-                            anchors.left: parent.left
-                            anchors.leftMargin: 8
-                            anchors.verticalCenter: parent.verticalCenter
-                            color: ConnectionController.isConnected ? "transparent" : "#6D7F9E"
-
-                            PowerGlyph {
-                                anchors.centerIn: parent
-                                width: 25
-                                height: 25
-                                color: "#F7FBFF"
-                                strokeWidth: 3
-                            }
-                        }
-
-                        Text {
-                            anchors.centerIn: parent
-                            anchors.horizontalCenterOffset: 28
-                            text: "Выкл"
-                            color: ConnectionController.isConnected ? "#C0C7D2" : "#F7FBFF"
-                            font.pixelSize: 18
-                            font.weight: Font.DemiBold
-                        }
-                    }
-
-                    Item {
-                        width: parent.width / 2
-                        height: parent.height
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "Вкл"
-                            color: ConnectionController.isConnected ? "#061F14" : "#F7FBFF"
-                            font.pixelSize: 18
-                            font.weight: ConnectionController.isConnected ? Font.DemiBold : Font.Normal
-                        }
-                    }
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: root.toggleSelectedServer()
-                }
+                connected: ConnectionController.isConnected
+                busy: ConnectionController.isConnectionInProgress
+                onClicked: root.toggleSelectedServer()
             }
 
             Text {
                 width: parent.width
                 text: "При первом подключении устройство запросит разрешение на VPN-соединение."
                 visible: AppApiController.authenticated
-                color: "#AAB4C4"
-                font.pixelSize: 16
+                color: "#B9C7B2"
+                font.pixelSize: 14
                 lineHeight: 1.22
                 wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
@@ -631,32 +561,32 @@ PageType {
                 spacing: 10
 
                 Rectangle {
-                    width: parent.width - 76
-                    height: 58
-                    radius: 29
-                    color: "#121B27"
-                    border.color: "#475365"
+                    width: parent.width - 66
+                    height: 50
+                    radius: 25
+                    color: "#10221B"
+                    border.color: "#3F6545"
                     border.width: 1
 
                     Image {
-                        width: 25
-                        height: 25
+                        width: 21
+                        height: 21
                         anchors.left: parent.left
-                        anchors.leftMargin: 22
+                        anchors.leftMargin: 20
                         anchors.verticalCenter: parent.verticalCenter
                         source: "qrc:/images/controls/search.svg"
-                        opacity: 0.76
+                        opacity: 0.68
                     }
 
                     TextField {
                         anchors.fill: parent
-                        anchors.leftMargin: 62
+                        anchors.leftMargin: 54
                         anchors.rightMargin: 18
                         text: root.searchText
                         placeholderText: "Поиск"
-                        placeholderTextColor: "#A9B3C2"
+                        placeholderTextColor: "#9AAFA0"
                         color: "#F7FBFF"
-                        font.pixelSize: 19
+                        font.pixelSize: 17
                         background: null
                         verticalAlignment: TextInput.AlignVCenter
                         onTextChanged: root.searchText = text
@@ -664,17 +594,23 @@ PageType {
                 }
 
                 Rectangle {
-                    width: 66
-                    height: 58
-                    radius: 29
-                    color: "#121B27"
-                    border.color: "#475365"
+                    width: 56
+                    height: 50
+                    radius: 25
+                    color: "#10221B"
+                    border.color: "#3F6545"
                     border.width: 1
 
                     SortGlyph {
                         anchors.centerIn: parent
-                        width: 24
-                        height: 30
+                        width: 25
+                        height: 28
+                        ascending: root.sortAscending
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: root.sortAscending = !root.sortAscending
                     }
                 }
             }
@@ -682,7 +618,7 @@ PageType {
             Rectangle {
                 width: parent.width
                 radius: 24
-                color: "#172231"
+                color: "#142A21"
                 opacity: 0.96
                 implicitHeight: locationsList.implicitHeight + 18
 
@@ -719,7 +655,7 @@ PageType {
                                     width: parent.width - 126
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: root.serverDisplayTitle(modelData)
-                                    color: root.serverIndexById(modelData.id) === root.selectedServerIndex ? "#9BD4FF" : "#F7FBFF"
+                                    color: root.serverIndexById(modelData.id) === root.selectedServerIndex ? "#B6EA6E" : "#F7FBFF"
                                     font.pixelSize: 20
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideRight
@@ -743,7 +679,7 @@ PageType {
                                         Text {
                                             width: 62
                                             text: modelData.latency || ""
-                                            color: "#AAB4C4"
+                                            color: "#AEBFA9"
                                             font.pixelSize: 10
                                             horizontalAlignment: Text.AlignHCenter
                                             elide: Text.ElideRight
@@ -757,7 +693,7 @@ PageType {
                                 width: parent.width
                                 height: 1
                                 anchors.bottom: parent.bottom
-                                color: "#334052"
+                                color: "#30483A"
                                 opacity: 0.72
                                 visible: index < root.filteredServers().length - 1
                             }
@@ -781,7 +717,7 @@ PageType {
 
         Column {
             width: parent.width
-            spacing: 24
+            spacing: 20
 
             ScreenHeader {
                 width: parent.width
@@ -791,35 +727,34 @@ PageType {
 
             Item {
                 width: parent.width
-                height: 330
+                height: 286
 
                 Column {
                     id: profileColumn
                     width: parent.width
                     anchors.centerIn: parent
-                    spacing: 24
+                    spacing: 22
 
                     Rectangle {
-                        width: 104
-                        height: 104
-                        radius: 52
+                        width: 96
+                        height: 96
+                        radius: 48
                         anchors.horizontalCenter: parent.horizontalCenter
-                        color: "#202A39"
+                        color: "#1A2E24"
 
-                        Image {
+                        ProfileGlyph {
                             width: 46
                             height: 46
                             anchors.centerIn: parent
-                            source: AppApiController.authenticated ? "qrc:/images/controls/app.svg" : "qrc:/images/controls/mail.svg"
-                            opacity: 0.92
+                            color: "#DCEED2"
                         }
                     }
 
                     Text {
                         width: parent.width
-                        text: AppApiController.authenticated ? "Профиль активен" : "Вы не авторизованы"
+                        text: AppApiController.authenticated ? "Профиль активен" : "Вход не выполнен"
                         color: "#F7FBFF"
-                        font.pixelSize: 26
+                        font.pixelSize: 24
                         font.weight: Font.DemiBold
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
@@ -828,7 +763,7 @@ PageType {
                     LoxleyButton {
                         width: Math.min(parent.width - 52, 390)
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: AppApiController.authenticated ? "Выйти из профиля" : "Войти в профиль"
+                        text: AppApiController.authenticated ? "Выйти" : "Войти"
                         secondary: AppApiController.authenticated
                         onClicked: {
                             if (AppApiController.authenticated) {
@@ -859,18 +794,10 @@ PageType {
                 onClicked: root.showToast("Раздел помощи появится в следующей версии")
             }
 
-            LoxleyButton {
-                width: Math.min(parent.width - 120, 260)
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: "Задать вопрос"
-                secondary: true
-                onClicked: root.showToast("Поддержка будет подключена позже")
-            }
-
             Text {
                 width: parent.width
                 text: "v0.1"
-                color: "#8E99A8"
+                color: "#8AA18E"
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter
             }
@@ -903,8 +830,8 @@ PageType {
 
                         width: parent.width
                         radius: 18
-                        color: index === root.protocolIndex ? "#20354B" : "#171E2A"
-                        border.color: index === root.protocolIndex ? "#5E9ED0" : "transparent"
+                        color: index === root.protocolIndex ? "#203B29" : "#14241D"
+                        border.color: index === root.protocolIndex ? "#7FAB55" : "transparent"
                         implicitHeight: protocolRow.implicitHeight + 24
 
                         Row {
@@ -918,7 +845,7 @@ PageType {
                                 height: 22
                                 radius: 11
                                 color: "transparent"
-                                border.color: index === root.protocolIndex ? "#4AB6FF" : "#7A8290"
+                                border.color: index === root.protocolIndex ? "#A8D85E" : "#7A8B78"
                                 border.width: 2
 
                                 Rectangle {
@@ -926,7 +853,7 @@ PageType {
                                     height: 10
                                     radius: 5
                                     anchors.centerIn: parent
-                                    color: "#4AB6FF"
+                                    color: "#A8D85E"
                                     visible: index === root.protocolIndex
                                 }
                             }
@@ -965,7 +892,7 @@ PageType {
             Rectangle {
                 width: parent.width
                 radius: 20
-                color: "#171E2A"
+                color: "#14241D"
                 border.color: "transparent"
                 implicitHeight: bypassRow.implicitHeight + 28
 
@@ -998,9 +925,9 @@ PageType {
                         }
                     }
 
-                    Switch {
+                    MiniToggle {
                         checked: root.russianBypass
-                        onToggled: root.russianBypass = checked
+                        onClicked: root.russianBypass = !root.russianBypass
                     }
                 }
             }
@@ -1008,7 +935,7 @@ PageType {
             Rectangle {
                 width: parent.width
                 radius: 20
-                color: "#171E2A"
+                color: "#14241D"
                 border.color: "transparent"
                 implicitHeight: backendColumn.implicitHeight + 28
 
@@ -1102,6 +1029,14 @@ PageType {
                 result.push(item)
             }
         }
+        result.sort(function(a, b) {
+            var left = root.serverDisplayTitle(a).toLowerCase()
+            var right = root.serverDisplayTitle(b).toLowerCase()
+            if (left === right) {
+                return 0
+            }
+            return root.sortAscending ? (left < right ? -1 : 1) : (left > right ? -1 : 1)
+        })
         return result
     }
 
@@ -1294,7 +1229,7 @@ PageType {
             radius: 24
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            color: "#CBD6E3"
+            color: "#D8EBC9"
 
             Canvas {
                 anchors.centerIn: parent
@@ -1334,11 +1269,134 @@ PageType {
         }
     }
 
+    component VpnToggle: Rectangle {
+        id: vpnToggleRoot
+
+        property bool connected: false
+        property bool busy: false
+        signal clicked()
+
+        height: 74
+        radius: height / 2
+        color: connected ? "#203D2B" : "#0D1614"
+        border.color: connected ? "#A8D85E" : "#3D5E45"
+        border.width: 1.2
+
+        Behavior on color {
+            ColorAnimation {
+                duration: 180
+            }
+        }
+
+        Rectangle {
+            id: toggleThumb
+            width: 58
+            height: 58
+            radius: 29
+            anchors.verticalCenter: parent.verticalCenter
+            x: vpnToggleRoot.connected ? vpnToggleRoot.width - width - 8 : 8
+            color: vpnToggleRoot.connected ? "#A8D85E" : "#294538"
+
+            Behavior on x {
+                NumberAnimation {
+                    duration: 190
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: 180
+                }
+            }
+
+            PowerGlyph {
+                anchors.centerIn: parent
+                width: 27
+                height: 27
+                color: vpnToggleRoot.connected ? "#08140D" : "#E8F3E3"
+                strokeWidth: 3
+            }
+        }
+
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.left: vpnToggleRoot.connected ? parent.left : toggleThumb.right
+            anchors.right: vpnToggleRoot.connected ? toggleThumb.left : parent.right
+            anchors.leftMargin: vpnToggleRoot.connected ? 28 : 16
+            anchors.rightMargin: vpnToggleRoot.connected ? 16 : 28
+            text: vpnToggleRoot.busy ? "Подключаем" : (vpnToggleRoot.connected ? "Отключить" : "Подключить")
+            color: vpnToggleRoot.connected ? "#DFF6B8" : "#F3FFF7"
+            font.family: "sans-serif-medium"
+            font.pixelSize: 18
+            font.weight: Font.DemiBold
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: 180
+                }
+            }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: vpnToggleRoot.clicked()
+        }
+    }
+
+    component MiniToggle: Rectangle {
+        id: miniToggleRoot
+
+        property bool checked: false
+        signal clicked()
+
+        width: 56
+        height: 34
+        radius: 17
+        color: checked ? "#A8D85E" : "#203127"
+        border.color: checked ? "#A8D85E" : "#4E6552"
+        border.width: 1
+
+        Behavior on color {
+            ColorAnimation {
+                duration: 160
+            }
+        }
+
+        Rectangle {
+            width: 26
+            height: 26
+            radius: 13
+            anchors.verticalCenter: parent.verticalCenter
+            x: miniToggleRoot.checked ? parent.width - width - 4 : 4
+            color: miniToggleRoot.checked ? "#07140B" : "#B8C9B3"
+
+            Behavior on x {
+                NumberAnimation {
+                    duration: 160
+                    easing.type: Easing.OutCubic
+                }
+            }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: miniToggleRoot.clicked()
+        }
+    }
+
     component PowerGlyph: Canvas {
         id: powerGlyphRoot
 
         property color color: "#F7FBFF"
         property real strokeWidth: 3
+
+        onColorChanged: requestPaint()
+        onStrokeWidthChanged: requestPaint()
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
 
         onPaint: {
             var ctx = getContext("2d")
@@ -1358,23 +1416,67 @@ PageType {
         }
     }
 
-    component SortGlyph: Item {
-        Image {
-            width: 20
-            height: 20
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: parent.top
-            source: "qrc:/images/controls/chevron-up.svg"
-            opacity: 0.92
-        }
+    component SortGlyph: Canvas {
+        id: sortGlyphRoot
 
-        Image {
-            width: 20
-            height: 20
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottom: parent.bottom
-            source: "qrc:/images/controls/chevron-down.svg"
-            opacity: 0.92
+        property bool ascending: true
+        property color activeColor: "#A8D85E"
+        property color inactiveColor: "#789184"
+
+        onAscendingChanged: requestPaint()
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+
+        onPaint: {
+            var ctx = getContext("2d")
+            ctx.clearRect(0, 0, width, height)
+            ctx.lineWidth = 2.4
+            ctx.lineCap = "round"
+            ctx.lineJoin = "round"
+
+            ctx.strokeStyle = sortGlyphRoot.ascending ? sortGlyphRoot.activeColor : sortGlyphRoot.inactiveColor
+            ctx.beginPath()
+            ctx.moveTo(width * 0.34, height * 0.78)
+            ctx.lineTo(width * 0.34, height * 0.22)
+            ctx.lineTo(width * 0.18, height * 0.38)
+            ctx.moveTo(width * 0.34, height * 0.22)
+            ctx.lineTo(width * 0.50, height * 0.38)
+            ctx.stroke()
+
+            ctx.strokeStyle = sortGlyphRoot.ascending ? sortGlyphRoot.inactiveColor : sortGlyphRoot.activeColor
+            ctx.beginPath()
+            ctx.moveTo(width * 0.66, height * 0.22)
+            ctx.lineTo(width * 0.66, height * 0.78)
+            ctx.lineTo(width * 0.50, height * 0.62)
+            ctx.moveTo(width * 0.66, height * 0.78)
+            ctx.lineTo(width * 0.82, height * 0.62)
+            ctx.stroke()
+        }
+    }
+
+    component ProfileGlyph: Canvas {
+        id: profileGlyphRoot
+
+        property color color: "#DCEED2"
+
+        onColorChanged: requestPaint()
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+
+        onPaint: {
+            var ctx = getContext("2d")
+            ctx.clearRect(0, 0, width, height)
+            ctx.strokeStyle = profileGlyphRoot.color
+            ctx.lineWidth = 3.2
+            ctx.lineCap = "round"
+
+            ctx.beginPath()
+            ctx.arc(width / 2, height * 0.33, width * 0.19, 0, Math.PI * 2)
+            ctx.stroke()
+
+            ctx.beginPath()
+            ctx.arc(width / 2, height * 0.86, width * 0.35, Math.PI * 1.08, Math.PI * 1.92)
+            ctx.stroke()
         }
     }
 
@@ -1422,8 +1524,8 @@ PageType {
 
         height: 58
         radius: height / 2
-        color: secondary ? "transparent" : "#2EE094"
-        border.color: secondary ? "#526A89" : "#2EE094"
+        color: secondary ? "transparent" : "#A8D85E"
+        border.color: secondary ? "#5D7A4B" : "#A8D85E"
         border.width: secondary ? 1.5 : 0
         opacity: enabled ? 1 : 0.45
 
@@ -1431,7 +1533,8 @@ PageType {
             anchors.centerIn: parent
             width: parent.width - 28
             text: buttonRoot.text
-            color: buttonRoot.secondary ? "#9BD4FF" : "#061F14"
+            color: buttonRoot.secondary ? "#C8EFA0" : "#07140B"
+            font.family: "sans-serif-medium"
             font.pixelSize: 17
             font.weight: Font.DemiBold
             horizontalAlignment: Text.AlignHCenter
@@ -1453,13 +1556,13 @@ PageType {
 
         height: 36
         radius: 14
-        color: "#20354B"
-        border.color: "#5E9ED0"
+        color: "#203B29"
+        border.color: "#7FAB55"
 
         Text {
             anchors.centerIn: parent
             text: chipRoot.text
-            color: "#A8F3C9"
+            color: "#D8F6B4"
             font.pixelSize: 12
             font.weight: Font.DemiBold
         }
@@ -1480,8 +1583,8 @@ PageType {
 
         height: 58
         radius: height / 2
-        color: "#171E2A"
-        border.color: input.activeFocus ? "#9BD4FF" : "#52606F"
+        color: "#12211B"
+        border.color: input.activeFocus ? "#BDEB7B" : "#526A50"
         border.width: 1.3
 
         TextField {
@@ -1491,8 +1594,9 @@ PageType {
             anchors.rightMargin: 22
             color: "#F7FBFF"
             placeholderText: fieldRoot.placeholderText
-            placeholderTextColor: "#A9B3C2"
-            font.pixelSize: 18
+            placeholderTextColor: "#9EAF9B"
+            font.family: "sans-serif"
+            font.pixelSize: 17
             inputMethodHints: fieldRoot.inputMethodHints
             background: null
             verticalAlignment: TextInput.AlignVCenter
@@ -1512,7 +1616,8 @@ PageType {
             width: parent.width
             text: headerRoot.title
             color: "#F7FBFF"
-            font.pixelSize: 30
+            font.family: "sans-serif-medium"
+            font.pixelSize: 29
             font.weight: Font.DemiBold
             wrapMode: Text.WordWrap
         }
@@ -1521,7 +1626,7 @@ PageType {
             width: parent.width
             text: headerRoot.subtitle
             visible: headerRoot.subtitle.length > 0
-            color: "#AAB4C4"
+            color: "#AEBFA9"
             font.pixelSize: 14
             lineHeight: 1.16
             wrapMode: Text.WordWrap
@@ -1548,12 +1653,12 @@ PageType {
                 anchors.horizontalCenter: parent.horizontalCenter
                 source: navRoot.iconSource
                 fillMode: Image.PreserveAspectFit
-                opacity: root.currentTab === navRoot.tabIndex || (root.currentTab === root.tabSettings && navRoot.tabIndex === root.tabProfile) ? 1 : 0.72
+                opacity: root.currentTab === navRoot.tabIndex || (root.currentTab === root.tabSettings && navRoot.tabIndex === root.tabProfile) ? 1 : 0.68
             }
 
             Text {
                 text: navRoot.label
-                color: root.currentTab === navRoot.tabIndex || (root.currentTab === root.tabSettings && navRoot.tabIndex === root.tabProfile) ? "#F7FBFF" : "#AAB4C4"
+                color: root.currentTab === navRoot.tabIndex || (root.currentTab === root.tabSettings && navRoot.tabIndex === root.tabProfile) ? "#F7FBFF" : "#A8B6A5"
                 font.pixelSize: 15
                 font.weight: root.currentTab === navRoot.tabIndex || (root.currentTab === root.tabSettings && navRoot.tabIndex === root.tabProfile) ? Font.DemiBold : Font.Normal
             }
@@ -1582,8 +1687,8 @@ PageType {
                 width: 6
                 height: 10 + index * 5
                 radius: 3
-                anchors.bottom: parent.bottom
-                color: index < barsRoot.quality ? "#4AB6FF" : "#475364"
+                y: barsRoot.height - height
+                color: index < barsRoot.quality ? "#A8D85E" : "#4E5F53"
             }
         }
     }
@@ -1597,7 +1702,7 @@ PageType {
         signal clicked()
 
         radius: 22
-        color: "#171E2A"
+        color: "#14241D"
         border.color: "transparent"
         implicitHeight: menuContent.implicitHeight + 28
 
@@ -1611,7 +1716,7 @@ PageType {
                 width: 46
                 height: 46
                 radius: 18
-                color: "#243141"
+                color: "#203729"
 
                 Image {
                     width: 22
@@ -1639,7 +1744,7 @@ PageType {
                     width: parent.width
                     text: menuRoot.subtitle
                     visible: menuRoot.subtitle.length > 0
-                    color: "#AAB4C4"
+                    color: "#AEBFA9"
                     font.pixelSize: 12
                     elide: Text.ElideRight
                 }
