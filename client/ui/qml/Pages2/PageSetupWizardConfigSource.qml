@@ -25,6 +25,8 @@ PageType {
     property string toastText: ""
     property string searchText: ""
     property string backendUrlText: AppApiController.baseUrl
+    property bool emailError: false
+    property int emailShakeOffset: 0
 
     readonly property string pocAuthCode: "TEST123"
     readonly property bool authScreenVisible: !AppApiController.authenticated && !guestMode
@@ -95,6 +97,24 @@ PageType {
         }
     ]
 
+    onAuthScreenVisibleChanged: {
+        if (root.authScreenVisible) {
+            root.resetEmailError()
+            root.statusText = ""
+            Qt.callLater(function() {
+                authScroll.contentY = 0
+            })
+        }
+    }
+
+    onCurrentTabChanged: {
+        Qt.callLater(function() {
+            if (!root.authScreenVisible) {
+                appScroll.contentY = 0
+            }
+        })
+    }
+
     Connections {
         target: AppApiController
 
@@ -163,6 +183,39 @@ PageType {
 
         function onImportFinished() {
             root.statusText = "Профиль VPN готов"
+        }
+    }
+
+    SequentialAnimation {
+        id: emailShakeAnimation
+
+        NumberAnimation {
+            target: root
+            property: "emailShakeOffset"
+            to: -8
+            duration: 45
+            easing.type: Easing.OutQuad
+        }
+        NumberAnimation {
+            target: root
+            property: "emailShakeOffset"
+            to: 8
+            duration: 70
+            easing.type: Easing.InOutQuad
+        }
+        NumberAnimation {
+            target: root
+            property: "emailShakeOffset"
+            to: -5
+            duration: 60
+            easing.type: Easing.InOutQuad
+        }
+        NumberAnimation {
+            target: root
+            property: "emailShakeOffset"
+            to: 0
+            duration: 65
+            easing.type: Easing.OutQuad
         }
     }
 
@@ -242,89 +295,140 @@ PageType {
     }
 
     Item {
+        id: authRoot
+
         anchors.fill: parent
         visible: root.authScreenVisible
 
         Flickable {
+            id: authScroll
+
             anchors.fill: parent
+            anchors.bottomMargin: 100 + PageController.safeAreaBottomMargin
             contentWidth: width
-            contentHeight: authColumn.implicitHeight + 96
+            contentHeight: authColumn.implicitHeight + 56
+            interactive: contentHeight > height + 1
+            boundsBehavior: interactive ? Flickable.DragAndOvershootBounds : Flickable.StopAtBounds
             clip: true
+
+            onContentHeightChanged: {
+                if (!interactive) {
+                    contentY = 0
+                }
+            }
+            onHeightChanged: {
+                if (!interactive) {
+                    contentY = 0
+                }
+            }
 
             Column {
                 id: authColumn
-                width: Math.min(parent.width - 56, 440)
+                width: Math.min(parent.width - 60, 440)
                 anchors.horizontalCenter: parent.horizontalCenter
-                topPadding: 72 + PageController.safeAreaTopMargin
-                spacing: 24
+                topPadding: 18 + PageController.safeAreaTopMargin
+                spacing: 0
 
                 AppLogoHeader {
                     width: parent.width
                 }
 
-                Column {
+                Item {
                     width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: parent.width
-                        text: "Добро пожаловать"
-                        color: "#F7FBFF"
-                        font.pixelSize: 33
-                        font.weight: Font.DemiBold
-                        horizontalAlignment: Text.AlignHCenter
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Text {
-                        width: parent.width
-                        text: "Войдите или зарегистрируйтесь"
-                        color: "#B7C1D0"
-                        font.pixelSize: 19
-                        lineHeight: 1.18
-                        horizontalAlignment: Text.AlignHCenter
-                        wrapMode: Text.WordWrap
-                    }
+                    height: 38
                 }
 
                 Column {
                     width: parent.width
                     spacing: 12
 
-                    LoxleyTextField {
+                    Text {
                         width: parent.width
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "Добро пожаловать"
+                        color: "#F7FBFF"
+                        font.family: "sans-serif-medium"
+                        font.pixelSize: 36
+                        font.weight: Font.DemiBold
+                        lineHeight: 1
+                        horizontalAlignment: Text.AlignHCenter
+                        maximumLineCount: 1
+                        fontSizeMode: Text.HorizontalFit
+                        minimumPixelSize: 32
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: "Войдите или зарегистрируйтесь"
+                        color: "#B5C4BB"
+                        font.pixelSize: 20
+                        lineHeight: 1.18
+                        horizontalAlignment: Text.AlignHCenter
+                        maximumLineCount: 1
+                        fontSizeMode: Text.HorizontalFit
+                        minimumPixelSize: 17
+                    }
+                }
+
+                Item {
+                    width: parent.width
+                    height: 42
+                }
+
+                Column {
+                    width: parent.width
+                    spacing: 0
+
+                    LoxleyTextField {
+                        id: emailInput
+                        width: parent.width
+                        height: 60
+                        x: root.emailShakeOffset
                         text: root.emailText
                         placeholderText: "Введите email"
+                        hasError: root.emailError
                         inputMethodHints: Qt.ImhEmailCharactersOnly
 
-                        onTextChanged: root.emailText = text
+                        onTextChanged: {
+                            root.emailText = text
+                            if (root.emailError && text.trim().length > 0) {
+                                root.emailError = false
+                            }
+                        }
                         onAccepted: root.loginWithEmail()
+                    }
+
+                    Item {
+                        width: parent.width
+                        height: 16
                     }
 
                     LoxleyButton {
                         width: parent.width
+                        height: 60
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        labelPixelSize: 18
                         text: AppApiController.busy ? "Подключаем профиль..." : "Продолжить"
                         enabled: !AppApiController.busy
                         onClicked: root.loginWithEmail()
                     }
 
+                    Item {
+                        width: parent.width
+                        height: 24
+                    }
+
                     Text {
                         width: parent.width
+                        anchors.horizontalCenter: parent.horizontalCenter
                         text: "Нажимая «Продолжить», вы соглашаетесь с условиями использования и политикой конфиденциальности LoxleyVPN."
-                        color: "#C1CAD7"
-                        font.pixelSize: 14
-                        lineHeight: 1.26
+                        color: "#B9C5BE"
+                        font.pixelSize: 13
+                        lineHeight: 1.18
                         wrapMode: Text.WordWrap
                         horizontalAlignment: Text.AlignHCenter
                     }
 
-                    LoxleyButton {
-                        width: Math.min(parent.width, 190)
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: "Пропустить пока"
-                        secondary: true
-                        onClicked: root.enterGuestMode()
-                    }
                 }
 
                 Text {
@@ -337,6 +441,18 @@ PageType {
                     horizontalAlignment: Text.AlignHCenter
                 }
             }
+        }
+
+        LoxleyButton {
+            width: Math.min(parent.width - 96, 158)
+            height: 42
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 26 + PageController.safeAreaBottomMargin
+            text: "Пропустить"
+            secondary: true
+            labelPixelSize: 14
+            onClicked: root.enterGuestMode()
         }
     }
 
@@ -351,8 +467,21 @@ PageType {
             anchors.bottomMargin: root.bottomNavHeight + root.bottomNavSafeMargin
             contentWidth: width
             contentHeight: pageColumn.implicitHeight + 34
+            interactive: contentHeight > height + 1
+            boundsBehavior: interactive ? Flickable.DragAndOvershootBounds : Flickable.StopAtBounds
             clip: true
             bottomMargin: 18
+
+            onContentHeightChanged: {
+                if (!interactive) {
+                    contentY = 0
+                }
+            }
+            onHeightChanged: {
+                if (!interactive) {
+                    contentY = 0
+                }
+            }
 
             Column {
                 id: pageColumn
@@ -553,7 +682,7 @@ PageType {
 
             Item {
                 width: parent.width
-                height: 88
+                height: 68
             }
 
             Text {
@@ -566,7 +695,7 @@ PageType {
             }
 
             VpnToggle {
-                width: Math.min(parent.width - 74, 318)
+                width: Math.min(parent.width - 54, 344)
                 anchors.horizontalCenter: parent.horizontalCenter
                 connected: ConnectionController.isConnected
                 busy: ConnectionController.isConnectionInProgress
@@ -722,7 +851,8 @@ PageType {
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: root.serverDisplayTitle(modelData)
                                     color: root.serverIndexById(modelData.id) === root.selectedServerIndex ? root.loxleyAccent : "#F7FBFF"
-                                    font.pixelSize: 19
+                                    font.family: "sans-serif-medium"
+                                    font.pixelSize: 20
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideRight
                                 }
@@ -782,18 +912,24 @@ PageType {
         id: profileScreen
 
             Column {
+                id: profileRoot
+
                 width: parent.width
                 spacing: 18
 
                 ScreenHeader {
+                    id: profileHeader
+
                     width: parent.width
                 title: "Профиль"
                 subtitle: ""
             }
 
                 Item {
+                    id: profileHero
+
                     width: parent.width
-                    height: 256
+                    height: 238
 
                     Column {
                         id: profileColumn
@@ -840,7 +976,9 @@ PageType {
 
                     LoxleyButton {
                         width: Math.min(parent.width - 52, 390)
+                        height: 52
                         anchors.horizontalCenter: parent.horizontalCenter
+                        labelPixelSize: 17
                         text: AppApiController.authenticated ? "Выйти" : "Войти"
                         secondary: AppApiController.authenticated
                         onClicked: {
@@ -857,6 +995,8 @@ PageType {
             }
 
             MenuRow {
+                id: profileSettingsRow
+
                 width: parent.width
                 iconSource: "qrc:/images/controls/settings-2.svg"
                 title: "Настройки"
@@ -865,6 +1005,8 @@ PageType {
             }
 
             MenuRow {
+                id: profileHelpRow
+
                 width: parent.width
                 iconSource: "qrc:/images/controls/help-circle.svg"
                 title: "Справочный центр"
@@ -872,7 +1014,14 @@ PageType {
                 onClicked: root.showToast("Раздел помощи появится в следующей версии")
             }
 
+            Item {
+                width: parent.width
+                height: Math.max(36, appScroll.height - profileHeader.implicitHeight - profileHero.height - profileSettingsRow.implicitHeight - profileHelpRow.implicitHeight - versionLabel.implicitHeight - profileRoot.spacing * 5 - 28)
+            }
+
             Text {
+                id: versionLabel
+
                 width: parent.width
                 text: "v0.1"
                 color: "#8AA18E"
@@ -1066,11 +1215,14 @@ PageType {
     function loginWithEmail() {
         var trimmedEmail = root.emailText.trim()
         if (trimmedEmail.length === 0) {
-            root.statusText = "Введите email"
-            root.showToast(root.statusText)
+            root.emailError = true
+            root.statusText = ""
+            emailInput.focusInput()
+            emailShakeAnimation.restart()
             return
         }
 
+        root.emailError = false
         if (root.backendUrlText.trim().length > 0) {
             AppApiController.baseUrl = root.backendUrlText.trim()
         }
@@ -1083,12 +1235,19 @@ PageType {
         root.guestMode = true
         root.currentTab = root.tabHome
         root.statusText = ""
+        root.resetEmailError()
     }
 
     function requireAuth() {
         root.statusText = "Авторизуйтесь для доступа к VPN"
         root.showToast(root.statusText)
         root.guestMode = false
+    }
+
+    function resetEmailError() {
+        root.emailError = false
+        root.emailShakeOffset = 0
+        emailShakeAnimation.stop()
     }
 
     function currentServers() {
@@ -1301,55 +1460,17 @@ PageType {
     }
 
     component AppLogoHeader: Item {
-        height: 96
+        height: 88
 
-        Rectangle {
-            width: 88
-            height: 88
-            radius: 28
+        Image {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            color: Qt.rgba(1, 1, 1, 0.12)
-            border.color: root.glassLineStrong
-            border.width: 1
-
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: 1
-                radius: parent.radius - 1
-                color: "transparent"
-                border.color: Qt.rgba(1, 1, 1, 0.12)
-                border.width: 1
-            }
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                height: parent.height * 0.48
-                radius: parent.radius
-                opacity: 0.18
-                gradient: Gradient {
-                    GradientStop {
-                        position: 0
-                        color: "#FFFFFF"
-                    }
-                    GradientStop {
-                        position: 1
-                        color: "#00FFFFFF"
-                    }
-                }
-            }
-
-            Image {
-                anchors.centerIn: parent
-                width: 74
-                height: 74
-                source: "qrc:/images/loxleyvpnLogoLockup.png"
-                sourceClipRect: Qt.rect(0, 0, 300, 310)
-                fillMode: Image.PreserveAspectFit
-                smooth: true
-            }
+            width: 88
+            height: 88
+            source: "qrc:/images/loxleyvpnLogoLockup.png"
+            sourceClipRect: Qt.rect(0, 0, 300, 310)
+            fillMode: Image.PreserveAspectFit
+            smooth: true
         }
     }
 
@@ -1360,60 +1481,113 @@ PageType {
         property bool busy: false
         signal clicked()
 
-        height: 74
+        height: 82
         radius: height / 2
-        color: connected ? Qt.rgba(0.72, 0.95, 0.42, 0.18) : Qt.rgba(1, 1, 1, 0.08)
-        border.color: connected ? root.glassLineStrong : root.glassLine
+        color: "transparent"
+        border.color: connected ? Qt.rgba(0.75, 1, 0.54, 0.62) : Qt.rgba(1, 1, 1, 0.12)
         border.width: 1
 
-        Behavior on color {
-            ColorAnimation {
-                duration: 180
+        Rectangle {
+            id: toggleGlow
+            anchors.centerIn: parent
+            width: parent.width + 18
+            height: parent.height + 18
+            radius: height / 2
+            color: vpnToggleRoot.connected ? Qt.rgba(0.54, 0.94, 0.45, 0.22) : Qt.rgba(1, 1, 1, 0.04)
+            opacity: vpnToggleRoot.busy ? 0.74 : (vpnToggleRoot.connected ? 0.48 : 0.2)
+        }
+
+        SequentialAnimation {
+            running: vpnToggleRoot.busy
+            loops: Animation.Infinite
+
+            NumberAnimation {
+                target: toggleGlow
+                property: "opacity"
+                to: 0.28
+                duration: 520
+                easing.type: Easing.InOutQuad
+            }
+            NumberAnimation {
+                target: toggleGlow
+                property: "opacity"
+                to: 0.78
+                duration: 620
+                easing.type: Easing.InOutQuad
             }
         }
 
         Rectangle {
+            anchors.fill: parent
+            radius: parent.radius
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop {
+                    position: 0
+                    color: vpnToggleRoot.connected ? "#8BE35A" : "#182119"
+                }
+                GradientStop {
+                    position: 0.52
+                    color: vpnToggleRoot.connected ? "#B7F36F" : "#2B3D2D"
+                }
+                GradientStop {
+                    position: 1
+                    color: vpnToggleRoot.connected ? "#1B361F" : "#121712"
+                }
+            }
+            opacity: vpnToggleRoot.connected ? 0.96 : 0.9
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: parent.radius - 1
+            color: Qt.rgba(1, 1, 1, 0.045)
+            border.color: Qt.rgba(1, 1, 1, 0.08)
+            border.width: 1
+        }
+
+        Rectangle {
             id: toggleThumb
-            width: 58
-            height: 58
-            radius: 29
+            width: 66
+            height: 66
+            radius: 33
             anchors.verticalCenter: parent.verticalCenter
             x: vpnToggleRoot.connected ? vpnToggleRoot.width - width - 8 : 8
-            color: vpnToggleRoot.connected ? root.loxleyAccent : Qt.rgba(1, 1, 1, 0.16)
-            border.color: vpnToggleRoot.connected ? Qt.rgba(1, 1, 1, 0.44) : Qt.rgba(1, 1, 1, 0.16)
+            scale: vpnToggleRoot.busy ? 0.94 : 1
+            gradient: Gradient {
+                GradientStop {
+                    position: 0
+                    color: vpnToggleRoot.connected ? "#F0FFD8" : "#ECF4EA"
+                }
+                GradientStop {
+                    position: 1
+                    color: vpnToggleRoot.connected ? "#A6F46A" : "#AEB9AB"
+                }
+            }
+            border.color: Qt.rgba(1, 1, 1, 0.48)
             border.width: 1
 
             Behavior on x {
                 NumberAnimation {
-                    duration: 190
+                    duration: 230
                     easing.type: Easing.OutCubic
                 }
             }
 
-            Behavior on color {
-                ColorAnimation {
-                    duration: 180
+            Behavior on scale {
+                NumberAnimation {
+                    duration: 160
+                    easing.type: Easing.OutQuad
                 }
             }
 
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.margins: 6
-                height: 19
-                radius: 10
-                opacity: 0.22
-                gradient: Gradient {
-                    GradientStop {
-                        position: 0
-                        color: "#FFFFFF"
-                    }
-                    GradientStop {
-                        position: 1
-                        color: "#00FFFFFF"
-                    }
-                }
+            PowerGlyph {
+                width: 31
+                height: 31
+                anchors.centerIn: parent
+                color: vpnToggleRoot.connected ? "#183318" : "#27302B"
+                strokeWidth: 3
             }
         }
 
@@ -1421,12 +1595,12 @@ PageType {
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: vpnToggleRoot.connected ? parent.left : toggleThumb.right
             anchors.right: vpnToggleRoot.connected ? toggleThumb.left : parent.right
-            anchors.leftMargin: vpnToggleRoot.connected ? 28 : 16
-            anchors.rightMargin: vpnToggleRoot.connected ? 16 : 28
-            text: vpnToggleRoot.busy ? "Подключаем" : (vpnToggleRoot.connected ? "Отключить" : "Подключить")
-            color: vpnToggleRoot.connected ? "#E9FFD0" : "#F3FFF7"
+            anchors.leftMargin: vpnToggleRoot.connected ? 24 : 18
+            anchors.rightMargin: vpnToggleRoot.connected ? 18 : 24
+            text: vpnToggleRoot.busy ? "Запускаем защиту" : (vpnToggleRoot.connected ? "Защита включена" : "Включить защиту")
+            color: vpnToggleRoot.connected ? "#10210E" : "#F3FFF7"
             font.family: "sans-serif-medium"
-            font.pixelSize: 18
+            font.pixelSize: 17
             font.weight: Font.DemiBold
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
@@ -1499,17 +1673,24 @@ PageType {
         onPaint: {
             var ctx = getContext("2d")
             ctx.clearRect(0, 0, width, height)
+
+            var size = Math.min(width, height)
+            var centerX = width / 2
+            var centerY = height / 2 + size * 0.06
+            var radius = size * 0.31
+
             ctx.strokeStyle = powerGlyphRoot.color
             ctx.lineWidth = powerGlyphRoot.strokeWidth
             ctx.lineCap = "round"
+            ctx.lineJoin = "round"
 
             ctx.beginPath()
-            ctx.arc(width / 2, height / 2 + 3, Math.min(width, height) * 0.34, Math.PI * 0.72, Math.PI * 2.28)
+            ctx.arc(centerX, centerY, radius, Math.PI * -0.25, Math.PI * 1.25)
             ctx.stroke()
 
             ctx.beginPath()
-            ctx.moveTo(width / 2, 2)
-            ctx.lineTo(width / 2, height * 0.48)
+            ctx.moveTo(centerX, size * 0.12)
+            ctx.lineTo(centerX, centerY - radius * 0.28)
             ctx.stroke()
         }
     }
@@ -1592,8 +1773,11 @@ PageType {
         Image {
             id: flagImage
             anchors.fill: parent
+            sourceSize.width: width * 4
+            sourceSize.height: height * 4
             source: root.flagSource(flagBadgeRoot.server)
             fillMode: Image.PreserveAspectCrop
+            mipmap: true
             visible: false
             smooth: true
         }
@@ -1618,42 +1802,23 @@ PageType {
         property string text: ""
         property bool secondary: false
         property bool enabled: true
+        property int labelPixelSize: secondary ? 18 : 19
         signal clicked()
 
         height: 58
         radius: height / 2
-        color: secondary ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(0.72, 0.95, 0.42, 0.86)
-        border.color: secondary ? root.glassLine : Qt.rgba(0.92, 1, 0.72, 0.68)
+        color: secondary ? Qt.rgba(1, 1, 1, 0.035) : "#64D76D"
+        border.color: secondary ? Qt.rgba(0.70, 0.90, 0.55, 0.44) : "#7CEB83"
         border.width: 1
         opacity: enabled ? 1 : 0.45
-
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 1
-            height: parent.height * 0.48
-            radius: parent.radius - 1
-            opacity: buttonRoot.secondary ? 0.1 : 0.16
-            gradient: Gradient {
-                GradientStop {
-                    position: 0
-                    color: "#FFFFFF"
-                }
-                GradientStop {
-                    position: 1
-                    color: "#00FFFFFF"
-                }
-            }
-        }
 
         Text {
             anchors.centerIn: parent
             width: parent.width - 28
             text: buttonRoot.text
-            color: buttonRoot.secondary ? "#D2F4B4" : "#07140B"
-            font.family: "sans-serif-medium"
-            font.pixelSize: 17
+            color: buttonRoot.secondary ? "#CDEFB0" : "#06140A"
+            font.family: "sans-serif"
+            font.pixelSize: buttonRoot.labelPixelSize
             font.weight: Font.DemiBold
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
@@ -1697,12 +1862,13 @@ PageType {
         property alias text: input.text
         property string placeholderText: ""
         property int inputMethodHints: Qt.ImhNone
+        property bool hasError: false
         signal accepted()
 
         height: 58
         radius: height / 2
-        color: root.glassFill
-        border.color: input.activeFocus ? root.glassLineStrong : root.glassLine
+        color: Qt.rgba(1, 1, 1, 0.062)
+        border.color: hasError ? Qt.rgba(1, 0.33, 0.34, 0.68) : (input.activeFocus ? Qt.rgba(0.70, 0.92, 0.55, 0.52) : Qt.rgba(0.70, 0.90, 0.55, 0.26))
         border.width: 1
 
         Rectangle {
@@ -1710,24 +1876,35 @@ PageType {
             anchors.margins: 1
             radius: parent.radius - 1
             color: "transparent"
-            border.color: Qt.rgba(1, 1, 1, 0.08)
+            border.color: fieldRoot.hasError ? Qt.rgba(1, 0.45, 0.45, 0.24) : Qt.rgba(1, 1, 1, 0.08)
             border.width: 1
+        }
+
+        Behavior on border.color {
+            ColorAnimation {
+                duration: 140
+            }
         }
 
         TextField {
             id: input
             anchors.fill: parent
-            anchors.leftMargin: 22
-            anchors.rightMargin: 22
+            anchors.leftMargin: 24
+            anchors.rightMargin: 24
             color: "#F7FBFF"
             placeholderText: fieldRoot.placeholderText
-            placeholderTextColor: "#9EAF9B"
+            placeholderTextColor: fieldRoot.hasError ? "#FF8588" : "#9EAF9B"
             font.family: "sans-serif"
             font.pixelSize: 17
+            font.weight: Font.Normal
             inputMethodHints: fieldRoot.inputMethodHints
             background: null
             verticalAlignment: TextInput.AlignVCenter
             onAccepted: fieldRoot.accepted()
+        }
+
+        function focusInput() {
+            input.forceActiveFocus()
         }
     }
 
