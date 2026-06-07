@@ -31,6 +31,12 @@ PageType {
     readonly property bool realApiMode: AppApiController.authenticated && !AppApiController.mockMode
     readonly property int bottomNavHeight: 70
     readonly property int bottomNavSafeMargin: Math.max(12, PageController.safeAreaBottomMargin + 2)
+    readonly property color glassFill: Qt.rgba(1, 1, 1, 0.082)
+    readonly property color glassFillStrong: Qt.rgba(1, 1, 1, 0.13)
+    readonly property color glassLine: Qt.rgba(0.78, 0.98, 0.62, 0.27)
+    readonly property color glassLineStrong: Qt.rgba(0.82, 1, 0.68, 0.45)
+    readonly property color loxleyAccent: "#B7F36F"
+    readonly property color loxleyAccentSoft: "#8AD56A"
     readonly property var fallbackServers: [
         {
             "id": "nl-awg-1",
@@ -165,35 +171,72 @@ PageType {
         gradient: Gradient {
             GradientStop {
                 position: 0
-                color: "#103F2E"
+                color: "#050807"
             }
             GradientStop {
-                position: 0.48
-                color: "#0C2A22"
+                position: 0.46
+                color: "#0B1511"
             }
             GradientStop {
                 position: 1
-                color: "#061016"
+                color: "#040608"
             }
         }
     }
 
     Rectangle {
         anchors.fill: parent
-        opacity: 0.34
+        opacity: 0.42
         gradient: Gradient {
             orientation: Gradient.Horizontal
             GradientStop {
                 position: 0
-                color: "#07120F"
+                color: "#040607"
             }
             GradientStop {
-                position: 0.58
-                color: "#163F2B"
+                position: 0.52
+                color: "#113022"
             }
             GradientStop {
                 position: 1
-                color: "#244E35"
+                color: "#112B25"
+            }
+        }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        opacity: 0.32
+        gradient: Gradient {
+            GradientStop {
+                position: 0
+                color: "#203D2E"
+            }
+            GradientStop {
+                position: 0.34
+                color: "#0A1411"
+            }
+            GradientStop {
+                position: 1
+                color: "#020304"
+            }
+        }
+    }
+
+    Rectangle {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: parent.height * 0.42
+        opacity: 0.18
+        gradient: Gradient {
+            GradientStop {
+                position: 0
+                color: "#D8FFD1"
+            }
+            GradientStop {
+                position: 1
+                color: "#00FFFFFF"
             }
         }
     }
@@ -278,7 +321,7 @@ PageType {
                     LoxleyButton {
                         width: Math.min(parent.width, 190)
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "Позже"
+                        text: "Пропустить пока"
                         secondary: true
                         onClicked: root.enterGuestMode()
                     }
@@ -304,7 +347,7 @@ PageType {
         Flickable {
             id: appScroll
             anchors.fill: parent
-            anchors.topMargin: 42 + PageController.safeAreaTopMargin
+            anchors.topMargin: 34 + PageController.safeAreaTopMargin
             anchors.bottomMargin: root.bottomNavHeight + root.bottomNavSafeMargin
             contentWidth: width
             contentHeight: pageColumn.implicitHeight + 34
@@ -344,7 +387,7 @@ PageType {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 0
             radius: 0
-            color: "#0D1816"
+            color: "#101816"
             border.color: "transparent"
             border.width: 0
 
@@ -461,9 +504,9 @@ PageType {
             Rectangle {
                 width: parent.width
                 radius: 30
-                color: "#173326"
+                color: root.glassFillStrong
                 opacity: 0.96
-                border.color: "#496D4C"
+                border.color: root.glassLineStrong
                 border.width: 1
                 implicitHeight: locationRow.implicitHeight + 30
 
@@ -510,7 +553,7 @@ PageType {
 
             Item {
                 width: parent.width
-                height: 116
+                height: 88
             }
 
             Text {
@@ -530,13 +573,13 @@ PageType {
                 onClicked: root.toggleSelectedServer()
             }
 
-            Text {
-                width: parent.width
-                text: "При первом подключении устройство запросит разрешение на VPN-соединение."
-                visible: AppApiController.authenticated
-                color: "#B9C7B2"
-                font.pixelSize: 14
-                lineHeight: 1.22
+                Text {
+                    width: parent.width
+                    text: "При первом подключении устройство запросит разрешение на VPN-соединение."
+                    visible: AppApiController.authenticated
+                    color: "#AABBB0"
+                    font.pixelSize: 14
+                    lineHeight: 1.22
                 wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
             }
@@ -561,32 +604,42 @@ PageType {
                 spacing: 10
 
                 Rectangle {
-                    width: parent.width - 66
-                    height: 50
-                    radius: 25
-                    color: "#10221B"
-                    border.color: "#3F6545"
+                    width: parent.width - 64
+                    height: 44
+                    radius: 22
+                    color: root.glassFill
+                    border.color: searchInput.activeFocus ? root.glassLineStrong : root.glassLine
                     border.width: 1
 
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: 1
+                        radius: parent.radius - 1
+                        color: "transparent"
+                        border.color: Qt.rgba(1, 1, 1, 0.08)
+                        border.width: 1
+                    }
+
                     Image {
-                        width: 21
-                        height: 21
+                        width: 18
+                        height: 18
                         anchors.left: parent.left
-                        anchors.leftMargin: 20
+                        anchors.leftMargin: 18
                         anchors.verticalCenter: parent.verticalCenter
                         source: "qrc:/images/controls/search.svg"
-                        opacity: 0.68
+                        opacity: 0.58
                     }
 
                     TextField {
+                        id: searchInput
                         anchors.fill: parent
-                        anchors.leftMargin: 54
-                        anchors.rightMargin: 18
+                        anchors.leftMargin: 48
+                        anchors.rightMargin: 16
                         text: root.searchText
                         placeholderText: "Поиск"
                         placeholderTextColor: "#9AAFA0"
                         color: "#F7FBFF"
-                        font.pixelSize: 17
+                        font.pixelSize: 15
                         background: null
                         verticalAlignment: TextInput.AlignVCenter
                         onTextChanged: root.searchText = text
@@ -594,21 +647,32 @@ PageType {
                 }
 
                 Rectangle {
-                    width: 56
-                    height: 50
-                    radius: 25
-                    color: "#10221B"
-                    border.color: "#3F6545"
+                    width: 54
+                    height: 44
+                    radius: 22
+                    color: root.glassFill
+                    border.color: root.glassLine
                     border.width: 1
+                    opacity: sortTap.pressed ? 0.76 : 1
+
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: 1
+                        radius: parent.radius - 1
+                        color: "transparent"
+                        border.color: Qt.rgba(1, 1, 1, 0.08)
+                        border.width: 1
+                    }
 
                     SortGlyph {
                         anchors.centerIn: parent
-                        width: 25
-                        height: 28
+                        width: 23
+                        height: 25
                         ascending: root.sortAscending
                     }
 
                     MouseArea {
+                        id: sortTap
                         anchors.fill: parent
                         onClicked: root.sortAscending = !root.sortAscending
                     }
@@ -618,7 +682,9 @@ PageType {
             Rectangle {
                 width: parent.width
                 radius: 24
-                color: "#142A21"
+                color: root.glassFill
+                border.color: Qt.rgba(1, 1, 1, 0.075)
+                border.width: 1
                 opacity: 0.96
                 implicitHeight: locationsList.implicitHeight + 18
 
@@ -655,8 +721,8 @@ PageType {
                                     width: parent.width - 126
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: root.serverDisplayTitle(modelData)
-                                    color: root.serverIndexById(modelData.id) === root.selectedServerIndex ? "#B6EA6E" : "#F7FBFF"
-                                    font.pixelSize: 20
+                                    color: root.serverIndexById(modelData.id) === root.selectedServerIndex ? root.loxleyAccent : "#F7FBFF"
+                                    font.pixelSize: 19
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideRight
                                 }
@@ -679,7 +745,7 @@ PageType {
                                         Text {
                                             width: 62
                                             text: modelData.latency || ""
-                                            color: "#AEBFA9"
+                                            color: "#AABBB0"
                                             font.pixelSize: 10
                                             horizontalAlignment: Text.AlignHCenter
                                             elide: Text.ElideRight
@@ -715,47 +781,59 @@ PageType {
     Component {
         id: profileScreen
 
-        Column {
-            width: parent.width
-            spacing: 20
-
-            ScreenHeader {
+            Column {
                 width: parent.width
+                spacing: 18
+
+                ScreenHeader {
+                    width: parent.width
                 title: "Профиль"
                 subtitle: ""
             }
 
-            Item {
-                width: parent.width
-                height: 286
+                Item {
+                    width: parent.width
+                    height: 256
 
-                Column {
-                    id: profileColumn
+                    Column {
+                        id: profileColumn
                     width: parent.width
                     anchors.centerIn: parent
                     spacing: 22
 
-                    Rectangle {
-                        width: 96
-                        height: 96
-                        radius: 48
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        color: "#1A2E24"
+                        Rectangle {
+                            width: 96
+                            height: 96
+                            radius: 48
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            color: root.glassFillStrong
+                            border.color: root.glassLine
+                            border.width: 1
 
-                        ProfileGlyph {
-                            width: 46
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.margins: 2
+                                radius: parent.radius - 2
+                                color: "transparent"
+                                border.color: Qt.rgba(1, 1, 1, 0.08)
+                                border.width: 1
+                            }
+
+                            ProfileGlyph {
+                                width: 46
                             height: 46
                             anchors.centerIn: parent
                             color: "#DCEED2"
                         }
                     }
 
-                    Text {
-                        width: parent.width
-                        text: AppApiController.authenticated ? "Профиль активен" : "Вход не выполнен"
-                        color: "#F7FBFF"
-                        font.pixelSize: 24
-                        font.weight: Font.DemiBold
+                        Text {
+                            width: parent.width
+                            text: AppApiController.authenticated ? "Профиль активен" : "Вход не выполнен"
+                            color: "#F7FBFF"
+                            font.family: "sans-serif-medium"
+                            font.pixelSize: 23
+                            font.weight: Font.DemiBold
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                     }
@@ -830,8 +908,8 @@ PageType {
 
                         width: parent.width
                         radius: 18
-                        color: index === root.protocolIndex ? "#203B29" : "#14241D"
-                        border.color: index === root.protocolIndex ? "#7FAB55" : "transparent"
+                        color: index === root.protocolIndex ? Qt.rgba(0.72, 0.95, 0.42, 0.15) : root.glassFill
+                        border.color: index === root.protocolIndex ? root.glassLineStrong : Qt.rgba(1, 1, 1, 0.06)
                         implicitHeight: protocolRow.implicitHeight + 24
 
                         Row {
@@ -845,7 +923,7 @@ PageType {
                                 height: 22
                                 radius: 11
                                 color: "transparent"
-                                border.color: index === root.protocolIndex ? "#A8D85E" : "#7A8B78"
+                                border.color: index === root.protocolIndex ? root.loxleyAccent : "#7A8B78"
                                 border.width: 2
 
                                 Rectangle {
@@ -853,7 +931,7 @@ PageType {
                                     height: 10
                                     radius: 5
                                     anchors.centerIn: parent
-                                    color: "#A8D85E"
+                                    color: root.loxleyAccent
                                     visible: index === root.protocolIndex
                                 }
                             }
@@ -892,8 +970,9 @@ PageType {
             Rectangle {
                 width: parent.width
                 radius: 20
-                color: "#14241D"
-                border.color: "transparent"
+                color: root.glassFill
+                border.color: Qt.rgba(1, 1, 1, 0.06)
+                border.width: 1
                 implicitHeight: bypassRow.implicitHeight + 28
 
                 Row {
@@ -935,8 +1014,9 @@ PageType {
             Rectangle {
                 width: parent.width
                 radius: 20
-                color: "#14241D"
-                border.color: "transparent"
+                color: root.glassFill
+                border.color: Qt.rgba(1, 1, 1, 0.06)
+                border.width: 1
                 implicitHeight: backendColumn.implicitHeight + 28
 
                 Column {
@@ -1224,47 +1304,51 @@ PageType {
         height: 96
 
         Rectangle {
-            width: 82
-            height: 82
-            radius: 24
+            width: 88
+            height: 88
+            radius: 28
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            color: "#D8EBC9"
+            color: Qt.rgba(1, 1, 1, 0.12)
+            border.color: root.glassLineStrong
+            border.width: 1
 
-            Canvas {
-                anchors.centerIn: parent
-                width: 50
-                height: 50
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: 1
+                radius: parent.radius - 1
+                color: "transparent"
+                border.color: Qt.rgba(1, 1, 1, 0.12)
+                border.width: 1
+            }
 
-                onPaint: {
-                    var ctx = getContext("2d")
-                    ctx.clearRect(0, 0, width, height)
-                    ctx.strokeStyle = "#07141B"
-                    ctx.fillStyle = "#07141B"
-                    ctx.lineWidth = 5
-                    ctx.lineCap = "round"
-                    ctx.lineJoin = "round"
-
-                    ctx.beginPath()
-                    ctx.moveTo(width / 2, 4)
-                    ctx.lineTo(width - 8, 14)
-                    ctx.lineTo(width - 8, 30)
-                    ctx.quadraticCurveTo(width - 8, 39, width / 2, 46)
-                    ctx.quadraticCurveTo(8, 39, 8, 30)
-                    ctx.lineTo(8, 14)
-                    ctx.closePath()
-                    ctx.stroke()
-
-                    ctx.beginPath()
-                    ctx.moveTo(width / 2, 19)
-                    ctx.lineTo(width / 2, 42)
-                    ctx.stroke()
-
-                    ctx.beginPath()
-                    ctx.moveTo(width / 2, 19)
-                    ctx.quadraticCurveTo(16, 20, 16, 33)
-                    ctx.stroke()
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: parent.height * 0.48
+                radius: parent.radius
+                opacity: 0.18
+                gradient: Gradient {
+                    GradientStop {
+                        position: 0
+                        color: "#FFFFFF"
+                    }
+                    GradientStop {
+                        position: 1
+                        color: "#00FFFFFF"
+                    }
                 }
+            }
+
+            Image {
+                anchors.centerIn: parent
+                width: 74
+                height: 74
+                source: "qrc:/images/loxleyvpnLogoLockup.png"
+                sourceClipRect: Qt.rect(0, 0, 300, 310)
+                fillMode: Image.PreserveAspectFit
+                smooth: true
             }
         }
     }
@@ -1278,9 +1362,9 @@ PageType {
 
         height: 74
         radius: height / 2
-        color: connected ? "#203D2B" : "#0D1614"
-        border.color: connected ? "#A8D85E" : "#3D5E45"
-        border.width: 1.2
+        color: connected ? Qt.rgba(0.72, 0.95, 0.42, 0.18) : Qt.rgba(1, 1, 1, 0.08)
+        border.color: connected ? root.glassLineStrong : root.glassLine
+        border.width: 1
 
         Behavior on color {
             ColorAnimation {
@@ -1295,7 +1379,9 @@ PageType {
             radius: 29
             anchors.verticalCenter: parent.verticalCenter
             x: vpnToggleRoot.connected ? vpnToggleRoot.width - width - 8 : 8
-            color: vpnToggleRoot.connected ? "#A8D85E" : "#294538"
+            color: vpnToggleRoot.connected ? root.loxleyAccent : Qt.rgba(1, 1, 1, 0.16)
+            border.color: vpnToggleRoot.connected ? Qt.rgba(1, 1, 1, 0.44) : Qt.rgba(1, 1, 1, 0.16)
+            border.width: 1
 
             Behavior on x {
                 NumberAnimation {
@@ -1310,12 +1396,24 @@ PageType {
                 }
             }
 
-            PowerGlyph {
-                anchors.centerIn: parent
-                width: 27
-                height: 27
-                color: vpnToggleRoot.connected ? "#08140D" : "#E8F3E3"
-                strokeWidth: 3
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 6
+                height: 19
+                radius: 10
+                opacity: 0.22
+                gradient: Gradient {
+                    GradientStop {
+                        position: 0
+                        color: "#FFFFFF"
+                    }
+                    GradientStop {
+                        position: 1
+                        color: "#00FFFFFF"
+                    }
+                }
             }
         }
 
@@ -1326,7 +1424,7 @@ PageType {
             anchors.leftMargin: vpnToggleRoot.connected ? 28 : 16
             anchors.rightMargin: vpnToggleRoot.connected ? 16 : 28
             text: vpnToggleRoot.busy ? "Подключаем" : (vpnToggleRoot.connected ? "Отключить" : "Подключить")
-            color: vpnToggleRoot.connected ? "#DFF6B8" : "#F3FFF7"
+            color: vpnToggleRoot.connected ? "#E9FFD0" : "#F3FFF7"
             font.family: "sans-serif-medium"
             font.pixelSize: 18
             font.weight: Font.DemiBold
@@ -1355,8 +1453,8 @@ PageType {
         width: 56
         height: 34
         radius: 17
-        color: checked ? "#A8D85E" : "#203127"
-        border.color: checked ? "#A8D85E" : "#4E6552"
+        color: checked ? Qt.rgba(0.72, 0.95, 0.42, 0.34) : Qt.rgba(1, 1, 1, 0.08)
+        border.color: checked ? root.glassLineStrong : root.glassLine
         border.width: 1
 
         Behavior on color {
@@ -1371,7 +1469,7 @@ PageType {
             radius: 13
             anchors.verticalCenter: parent.verticalCenter
             x: miniToggleRoot.checked ? parent.width - width - 4 : 4
-            color: miniToggleRoot.checked ? "#07140B" : "#B8C9B3"
+            color: miniToggleRoot.checked ? root.loxleyAccent : "#B8C9B3"
 
             Behavior on x {
                 NumberAnimation {
@@ -1420,8 +1518,8 @@ PageType {
         id: sortGlyphRoot
 
         property bool ascending: true
-        property color activeColor: "#A8D85E"
-        property color inactiveColor: "#789184"
+        property color activeColor: root.loxleyAccent
+        property color inactiveColor: "#9AAFA0"
 
         onAscendingChanged: requestPaint()
         onWidthChanged: requestPaint()
@@ -1524,16 +1622,36 @@ PageType {
 
         height: 58
         radius: height / 2
-        color: secondary ? "transparent" : "#A8D85E"
-        border.color: secondary ? "#5D7A4B" : "#A8D85E"
-        border.width: secondary ? 1.5 : 0
+        color: secondary ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(0.72, 0.95, 0.42, 0.86)
+        border.color: secondary ? root.glassLine : Qt.rgba(0.92, 1, 0.72, 0.68)
+        border.width: 1
         opacity: enabled ? 1 : 0.45
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 1
+            height: parent.height * 0.48
+            radius: parent.radius - 1
+            opacity: buttonRoot.secondary ? 0.1 : 0.16
+            gradient: Gradient {
+                GradientStop {
+                    position: 0
+                    color: "#FFFFFF"
+                }
+                GradientStop {
+                    position: 1
+                    color: "#00FFFFFF"
+                }
+            }
+        }
 
         Text {
             anchors.centerIn: parent
             width: parent.width - 28
             text: buttonRoot.text
-            color: buttonRoot.secondary ? "#C8EFA0" : "#07140B"
+            color: buttonRoot.secondary ? "#D2F4B4" : "#07140B"
             font.family: "sans-serif-medium"
             font.pixelSize: 17
             font.weight: Font.DemiBold
@@ -1583,9 +1701,18 @@ PageType {
 
         height: 58
         radius: height / 2
-        color: "#12211B"
-        border.color: input.activeFocus ? "#BDEB7B" : "#526A50"
-        border.width: 1.3
+        color: root.glassFill
+        border.color: input.activeFocus ? root.glassLineStrong : root.glassLine
+        border.width: 1
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: parent.radius - 1
+            color: "transparent"
+            border.color: Qt.rgba(1, 1, 1, 0.08)
+            border.width: 1
+        }
 
         TextField {
             id: input
@@ -1617,7 +1744,7 @@ PageType {
             text: headerRoot.title
             color: "#F7FBFF"
             font.family: "sans-serif-medium"
-            font.pixelSize: 29
+            font.pixelSize: 30
             font.weight: Font.DemiBold
             wrapMode: Text.WordWrap
         }
@@ -1688,7 +1815,7 @@ PageType {
                 height: 10 + index * 5
                 radius: 3
                 y: barsRoot.height - height
-                color: index < barsRoot.quality ? "#A8D85E" : "#4E5F53"
+                color: index < barsRoot.quality ? root.loxleyAccent : "#4E5F53"
             }
         }
     }
@@ -1701,41 +1828,55 @@ PageType {
         property string subtitle: ""
         signal clicked()
 
-        radius: 22
-        color: "#14241D"
-        border.color: "transparent"
-        implicitHeight: menuContent.implicitHeight + 28
+        radius: 24
+        color: root.glassFill
+        border.color: Qt.rgba(1, 1, 1, 0.07)
+        border.width: 1
+        implicitHeight: Math.max(76, menuContent.implicitHeight + 26)
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: parent.radius - 1
+            color: "transparent"
+            border.color: Qt.rgba(1, 1, 1, 0.07)
+            border.width: 1
+        }
 
         Row {
             id: menuContent
-            width: parent.width - 28
+            width: parent.width - 32
             anchors.centerIn: parent
             spacing: 16
 
             Rectangle {
-                width: 46
-                height: 46
+                width: 44
+                height: 44
                 radius: 18
-                color: "#203729"
+                color: Qt.rgba(1, 1, 1, 0.08)
+                border.color: root.glassLine
+                border.width: 1
 
                 Image {
-                    width: 22
-                    height: 22
+                    width: 21
+                    height: 21
                     anchors.centerIn: parent
                     source: menuRoot.iconSource
-                    opacity: 0.9
+                    opacity: 0.86
                 }
             }
 
             Column {
                 width: parent.width - 96
-                spacing: 4
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 3
 
                 Text {
                     width: parent.width
                     text: menuRoot.title
                     color: "#F7FBFF"
-                    font.pixelSize: 20
+                    font.family: "sans-serif-medium"
+                    font.pixelSize: 18
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
@@ -1755,7 +1896,7 @@ PageType {
                 height: 18
                 anchors.verticalCenter: parent.verticalCenter
                 source: "qrc:/images/controls/chevron-right.svg"
-                opacity: 0.76
+                opacity: 0.68
             }
         }
 
