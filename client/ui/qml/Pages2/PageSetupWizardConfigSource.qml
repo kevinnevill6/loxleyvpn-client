@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
+import Qt5Compat.GraphicalEffects
 
 import "../Controls2"
 
@@ -27,6 +28,8 @@ PageType {
     readonly property string pocAuthCode: "TEST123"
     readonly property bool authScreenVisible: !AppApiController.authenticated && !guestMode
     readonly property bool realApiMode: AppApiController.authenticated && !AppApiController.mockMode
+    readonly property int bottomNavHeight: 70
+    readonly property int bottomNavSafeMargin: Math.max(30, PageController.safeAreaBottomMargin + 4)
     readonly property var fallbackServers: [
         {
             "id": "nl-awg-1",
@@ -196,12 +199,8 @@ PageType {
                 topPadding: 48
                 spacing: 22
 
-                Image {
-                    width: Math.min(parent.width, 230)
-                    height: 74
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    source: "qrc:/images/loxleyvpnLogoLockup.png"
-                    fillMode: Image.PreserveAspectFit
+                AppLogoHeader {
+                    width: parent.width
                 }
 
                 Column {
@@ -292,19 +291,29 @@ PageType {
         anchors.fill: parent
         visible: !root.authScreenVisible
 
+        AppLogoHeader {
+            id: appHeader
+            width: parent.width
+            anchors.top: parent.top
+            anchors.topMargin: 12 + PageController.safeAreaTopMargin
+            z: 2
+        }
+
         Flickable {
             id: appScroll
             anchors.fill: parent
+            anchors.topMargin: 78 + PageController.safeAreaTopMargin
+            anchors.bottomMargin: root.bottomNavHeight + root.bottomNavSafeMargin + 14
             contentWidth: width
-            contentHeight: pageColumn.implicitHeight + 120
+            contentHeight: pageColumn.implicitHeight + 28
             clip: true
-            bottomMargin: 96
+            bottomMargin: 18
 
             Column {
                 id: pageColumn
                 width: Math.min(parent.width - 32, 520)
                 anchors.horizontalCenter: parent.horizontalCenter
-                topPadding: 30
+                topPadding: 0
                 spacing: 18
 
                 Loader {
@@ -328,10 +337,10 @@ PageType {
         Rectangle {
             id: bottomNav
             width: Math.min(parent.width - 32, 520)
-            height: 74
+            height: root.bottomNavHeight
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 16
+            anchors.bottomMargin: root.bottomNavSafeMargin
             radius: 26
             color: "#0D1712"
             border.color: "#20382C"
@@ -374,7 +383,7 @@ PageType {
         height: Math.max(46, toastMessage.implicitHeight + 24)
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: 104
+        anchors.bottomMargin: root.bottomNavHeight + root.bottomNavSafeMargin + 10
         radius: 16
         color: "#17241D"
         border.color: "#31C989"
@@ -410,24 +419,7 @@ PageType {
 
         Column {
             width: parent.width
-            spacing: 20
-
-            Row {
-                width: parent.width
-                spacing: 12
-
-                Image {
-                    width: 150
-                    height: 44
-                    source: "qrc:/images/loxleyvpnLogoLockup.png"
-                    fillMode: Image.PreserveAspectFit
-                }
-
-                Item {
-                    width: parent.width - 162
-                    height: 44
-                }
-            }
+            spacing: 14
 
             Rectangle {
                 width: parent.width
@@ -435,19 +427,19 @@ PageType {
                 color: "#0F1D16"
                 border.color: "#1F4E3B"
                 border.width: 1
-                implicitHeight: statusColumn.implicitHeight + 34
+                implicitHeight: statusColumn.implicitHeight + 26
 
                 Column {
                     id: statusColumn
-                    width: parent.width - 34
+                    width: parent.width - 30
                     anchors.centerIn: parent
-                    spacing: 12
+                    spacing: 8
 
                     Text {
                         width: parent.width
                         text: AppApiController.authenticated ? "Профиль активен" : "Гостевой режим"
                         color: "#7FF0B4"
-                        font.pixelSize: 13
+                        font.pixelSize: 12
                         font.weight: Font.DemiBold
                         horizontalAlignment: Text.AlignHCenter
                     }
@@ -456,7 +448,7 @@ PageType {
                         width: parent.width
                         text: AppApiController.authenticated ? "Выберите локацию и включите защищённое соединение." : "Войдите в профиль, чтобы включить VPN."
                         color: "#F3FFF7"
-                        font.pixelSize: 22
+                        font.pixelSize: 20
                         font.weight: Font.DemiBold
                         lineHeight: 1.12
                         wrapMode: Text.WordWrap
@@ -467,7 +459,7 @@ PageType {
                         width: parent.width
                         text: root.connectionStateLabel()
                         color: "#9CAFA5"
-                        font.pixelSize: 13
+                        font.pixelSize: 12
                         wrapMode: Text.WordWrap
                         horizontalAlignment: Text.AlignHCenter
                     }
@@ -479,7 +471,7 @@ PageType {
                 radius: 22
                 color: "#0C1511"
                 border.color: "#20382C"
-                implicitHeight: locationRow.implicitHeight + 30
+                implicitHeight: locationRow.implicitHeight + 24
 
                 Row {
                     id: locationRow
@@ -487,31 +479,21 @@ PageType {
                     anchors.centerIn: parent
                     spacing: 14
 
-                    Rectangle {
-                        width: 52
-                        height: 52
-                        radius: 18
-                        color: "#153B2A"
-
-                        Image {
-                            width: 25
-                            height: 25
-                            anchors.centerIn: parent
-                            source: "qrc:/images/controls/map-pin.svg"
-                            fillMode: Image.PreserveAspectFit
-                            opacity: 0.9
-                        }
+                    FlagBadge {
+                        width: 50
+                        height: 50
+                        server: root.selectedServer()
                     }
 
                     Column {
-                        width: parent.width - 160
+                        width: parent.width - 148
                         spacing: 4
 
                         Text {
                             width: parent.width
                             text: root.selectedServer().title || "Выберите локацию"
                             color: "#F3FFF7"
-                            font.pixelSize: 18
+                            font.pixelSize: 17
                             font.weight: Font.DemiBold
                             elide: Text.ElideRight
                         }
@@ -526,7 +508,7 @@ PageType {
                     }
 
                     LoxleyChip {
-                        width: 86
+                        width: 80
                         text: "Сменить"
                         onClicked: root.currentTab = root.tabLocations
                     }
@@ -534,65 +516,37 @@ PageType {
             }
 
             Rectangle {
-                width: 188
-                height: 188
+                width: 164
+                height: 164
                 anchors.horizontalCenter: parent.horizontalCenter
                 radius: width / 2
-                color: "#11291F"
-                border.color: "#31C989"
+                color: ConnectionController.isConnected ? "#2A1717" : "#11291F"
+                border.color: ConnectionController.isConnected ? "#FF7169" : "#31C989"
                 border.width: 2
 
                 Rectangle {
-                    width: 136
-                    height: 136
+                    width: 118
+                    height: 118
                     anchors.centerIn: parent
                     radius: width / 2
-                    color: "#22D58E"
+                    color: ConnectionController.isConnected ? "#FF7169" : "#22D58E"
 
                     Text {
                         anchors.centerIn: parent
                         width: parent.width - 22
-                        text: "VPN"
+                        text: root.vpnButtonLabel()
                         color: "#062014"
-                        font.pixelSize: 30
+                        font.pixelSize: 25
                         font.weight: Font.Bold
                         horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
                     }
                 }
 
                 MouseArea {
                     anchors.fill: parent
-                    onClicked: root.connectSelectedServer()
+                    onClicked: root.toggleSelectedServer()
                 }
-            }
-
-            LoxleyButton {
-                width: parent.width
-                text: AppApiController.authenticated ? "Включить VPN" : "Войти и включить VPN"
-                onClicked: {
-                    if (!AppApiController.authenticated) {
-                        root.requireAuth()
-                    } else {
-                        root.connectSelectedServer()
-                    }
-                }
-            }
-
-            LoxleyButton {
-                width: parent.width
-                text: "Выключить VPN"
-                secondary: true
-                onClicked: ConnectionController.closeConnection()
-            }
-
-            Text {
-                width: parent.width
-                text: root.statusText
-                visible: text.length > 0
-                color: "#83E9B2"
-                font.pixelSize: 13
-                wrapMode: Text.WordWrap
-                horizontalAlignment: Text.AlignHCenter
             }
         }
     }
@@ -659,25 +613,16 @@ PageType {
                             id: serverRow
                             width: parent.width - 28
                             anchors.centerIn: parent
-                            spacing: 12
+                            spacing: 10
 
-                            Rectangle {
-                                width: 46
-                                height: 46
-                                radius: 16
-                                color: "#102C20"
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: root.countryInitial(modelData.country)
-                                    color: "#9AF2C2"
-                                    font.pixelSize: 17
-                                    font.weight: Font.Bold
-                                }
+                            FlagBadge {
+                                width: 48
+                                height: 48
+                                server: modelData
                             }
 
                             Column {
-                                width: parent.width - 146
+                                width: parent.width - 140
                                 spacing: 4
 
                                 Text {
@@ -691,26 +636,38 @@ PageType {
 
                                 Text {
                                     width: parent.width
-                                    text: modelData.city + " · " + root.protocolLabel(modelData.protocol)
+                                    text: modelData.country || modelData.city || ""
                                     color: "#95A99E"
                                     font.pixelSize: 12
                                     elide: Text.ElideRight
                                 }
                             }
 
-                            QualityBars {
-                                width: 42
-                                height: 26
-                                quality: modelData.quality || root.qualityForStatus(modelData.status)
-                            }
+                            Item {
+                                width: 62
+                                height: 48
 
-                            Text {
-                                width: 42
-                                text: modelData.latency || ""
-                                color: "#7F9389"
-                                font.pixelSize: 11
-                                horizontalAlignment: Text.AlignRight
-                                elide: Text.ElideRight
+                                Column {
+                                    anchors.centerIn: parent
+                                    spacing: 3
+
+                                    QualityBars {
+                                        width: 42
+                                        height: 22
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        quality: modelData.quality || root.qualityForStatus(modelData.status)
+                                    }
+
+                                    Text {
+                                        width: 62
+                                        text: modelData.latency || ""
+                                        color: "#7F9389"
+                                        font.pixelSize: 10
+                                        horizontalAlignment: Text.AlignHCenter
+                                        elide: Text.ElideRight
+                                        maximumLineCount: 1
+                                    }
+                                }
                             }
                         }
 
@@ -1043,7 +1000,7 @@ PageType {
     }
 
     function requireAuth() {
-        root.statusText = "Авторизируйтесь для доступа к VPN"
+        root.statusText = "Авторизируйтесь, чтобы включить VPN"
         root.showToast(root.statusText)
         root.guestMode = false
     }
@@ -1083,7 +1040,7 @@ PageType {
         if (!server || !server.id) {
             return "Нет выбранного сервера"
         }
-        return (server.city || server.country || "Локация") + " · " + root.protocolLabel(server.protocol)
+        return server.country || server.city || "Локация"
     }
 
     function serverById(serverId) {
@@ -1126,11 +1083,25 @@ PageType {
         return 2
     }
 
-    function countryInitial(country) {
-        if (!country || country.length === 0) {
-            return "VPN"
+    function countryCode(server) {
+        var country = (server && server.country ? server.country : "").toLowerCase()
+        var city = (server && server.city ? server.city : "").toLowerCase()
+        var serverId = (server && server.id ? server.id : "").toLowerCase()
+
+        if (country.indexOf("нидер") !== -1 || country.indexOf("nether") !== -1 || serverId.indexOf("nl") === 0) {
+            return "NL"
         }
-        return country.substring(0, 1).toUpperCase()
+        if (country.indexOf("герман") !== -1 || country.indexOf("german") !== -1 || serverId.indexOf("de") === 0) {
+            return "DE"
+        }
+        if (country.indexOf("европа") !== -1 || country.indexOf("europe") !== -1 || city.indexOf("vless") !== -1) {
+            return "EU"
+        }
+        return "EU"
+    }
+
+    function flagSource(server) {
+        return "qrc:/countriesFlags/images/flagKit/" + root.countryCode(server) + ".svg"
     }
 
     function subscriptionSummary() {
@@ -1144,10 +1115,38 @@ PageType {
     }
 
     function connectionStateLabel() {
-        if (ConnectionController.connectionStateText && ConnectionController.connectionStateText.length > 0) {
-            return "Статус соединения: " + ConnectionController.connectionStateText
+        if (ConnectionController.isConnected) {
+            return "VPN подключён"
+        }
+        if (ConnectionController.isConnectionInProgress) {
+            return "VPN подключается"
+        }
+        if (ConnectionController.connectionStateText === "Disconnecting...") {
+            return "VPN отключается"
         }
         return "VPN выключен"
+    }
+
+    function vpnButtonLabel() {
+        if (ConnectionController.isConnected || ConnectionController.isConnectionInProgress) {
+            return "СТОП"
+        }
+        return "VPN"
+    }
+
+    function toggleSelectedServer() {
+        if (!AppApiController.authenticated) {
+            root.requireAuth()
+            return
+        }
+
+        if (ConnectionController.isConnected || ConnectionController.isConnectionInProgress) {
+            root.statusText = "Отключаем VPN"
+            ConnectionController.closeConnection()
+            return
+        }
+
+        root.connectSelectedServer()
     }
 
     function connectSelectedServer() {
@@ -1192,6 +1191,55 @@ PageType {
     function showToast(message) {
         root.toastText = message || ""
         toastTimer.restart()
+    }
+
+    component AppLogoHeader: Item {
+        height: 56
+
+        Image {
+            width: 54
+            height: 54
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            source: "qrc:/images/loxleyvpnLogoLockup.png"
+            sourceClipRect: Qt.rect(0, 0, 310, 310)
+            fillMode: Image.PreserveAspectFit
+            smooth: true
+        }
+    }
+
+    component FlagBadge: Item {
+        id: flagBadgeRoot
+
+        property var server
+
+        Rectangle {
+            anchors.fill: parent
+            radius: width / 2
+            color: "#102C20"
+        }
+
+        Image {
+            id: flagImage
+            anchors.fill: parent
+            source: root.flagSource(flagBadgeRoot.server)
+            fillMode: Image.PreserveAspectCrop
+            visible: false
+            smooth: true
+        }
+
+        Rectangle {
+            id: flagMask
+            anchors.fill: parent
+            radius: width / 2
+            visible: false
+        }
+
+        OpacityMask {
+            anchors.fill: parent
+            source: flagImage
+            maskSource: flagMask
+        }
     }
 
     component LoxleyButton: Rectangle {
