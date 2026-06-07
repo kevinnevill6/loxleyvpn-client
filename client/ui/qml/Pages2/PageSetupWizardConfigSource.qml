@@ -19,6 +19,7 @@ PageType {
     property int flowStep: 0
     property int selectedServerIndex: -1
     property string statusText: ""
+    property string backendUrlText: AppApiController.baseUrl
     property string accessCodeText: ""
     property bool mockMode: AppApiController.mockMode
 
@@ -189,9 +190,10 @@ PageType {
 
                 headerText: qsTr("Backend URL")
                 textField.placeholderText: qsTr("http://192.168.x.x:8000")
+                textField.onTextChanged: root.backendUrlText = textField.text
 
                 Component.onCompleted: {
-                    textField.text = AppApiController.baseUrl
+                    textField.text = root.backendUrlText
                 }
             }
 
@@ -449,7 +451,7 @@ PageType {
             return
         }
 
-        AppApiController.baseUrl = apiBaseUrl.textField.text.trim()
+        AppApiController.baseUrl = backendUrlText.trim()
         statusText = ""
         AppApiController.login(accessCodeText, AppApiController.deviceUuid, "", "android")
     }
