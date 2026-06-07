@@ -141,12 +141,12 @@ PageType {
     Connections {
         target: ImportController
 
-        function onErrorOccurred(error) {
-            root.statusText = error || "Ошибка импорта конфигурации"
+        function onImportErrorOccurred(errorCode, goToPageHome) {
+            root.statusText = "Ошибка импорта конфигурации"
             root.showToast(root.statusText)
         }
 
-        function onFinished() {
+        function onImportFinished() {
             root.statusText = "Профиль VPN готов"
         }
     }
@@ -1169,12 +1169,12 @@ PageType {
             return
         }
 
-        ImportController.extractConfig(configText)
-        var serverIndex = ServersModel.processedIndex
-        if (serverIndex >= 0) {
-            ServersModel.setProcessedServerName(serverTitle || "LoxleyVPN")
+        if (!ImportController.extractConfigFromData(configText)) {
+            root.statusText = "Ошибка импорта конфигурации"
+            root.showToast(root.statusText)
+            return
         }
-        ImportController.importConfig(serverIndex, false)
+        ImportController.importConfig()
         PageController.goToPageHome()
         Qt.callLater(ConnectionController.openConnection)
     }
