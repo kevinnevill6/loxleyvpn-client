@@ -68,11 +68,11 @@ PageType {
             "description": "Клиент сам выбирает основной или резервный протокол."
         },
         {
-            "title": "AmneziaWG",
+            "title": "LoxleyWG",
             "description": "Основной режим для LoxleyVPN v0.1."
         },
         {
-            "title": "AmneziaWG Extra",
+            "title": "LoxleyWG Extra",
             "description": "Усиленный WireGuard-профиль для нестабильных сетей."
         },
         {
@@ -111,7 +111,12 @@ PageType {
             }
         }
 
-        function onRequestFailed(message) {
+        function onMeFailed(message) {
+            root.statusText = message || "Ошибка запроса"
+            root.showToast(root.statusText)
+        }
+
+        function onServersFailed(message) {
             root.statusText = message || "Ошибка запроса"
             root.showToast(root.statusText)
         }
@@ -141,7 +146,7 @@ PageType {
     Connections {
         target: ImportController
 
-        function onImportErrorOccurred(errorCode, goToPageHome) {
+        function onImportErrorOccurred(errorCode, unusedHomeRedirect) {
             root.statusText = "Ошибка импорта конфигурации"
             root.showToast(root.statusText)
         }
@@ -641,6 +646,8 @@ PageType {
                     model: root.filteredServers()
 
                     delegate: Rectangle {
+                        required property var modelData
+
                         width: parent.width
                         radius: 20
                         color: root.serverIndexById(modelData.id) === root.selectedServerIndex ? "#173D2D" : "#0D1712"
@@ -854,6 +861,9 @@ PageType {
                     model: root.protocolModes
 
                     delegate: Rectangle {
+                        required property int index
+                        required property var modelData
+
                         width: parent.width
                         radius: 18
                         color: index === root.protocolIndex ? "#173D2D" : "#0D1712"
@@ -991,7 +1001,7 @@ PageType {
                     LoxleyTextField {
                         width: parent.width
                         text: root.backendUrlText
-                        placeholderText: "http://192.168.31.175:8000"
+                        placeholderText: "http://127.0.0.1:8000"
                         onTextChanged: {
                             root.backendUrlText = text
                             AppApiController.baseUrl = text
@@ -1098,7 +1108,7 @@ PageType {
 
     function protocolLabel(protocol) {
         if (protocol === "amnezia_wg") {
-            return "AmneziaWG"
+            return "LoxleyWG"
         }
         if (protocol === "xray_vless_reality") {
             return "Xray"
@@ -1175,7 +1185,7 @@ PageType {
             return
         }
         ImportController.importConfig()
-        PageController.goToPageHome()
+        root.statusText = "Подключаем VPN"
         Qt.callLater(ConnectionController.openConnection)
     }
 
@@ -1348,6 +1358,8 @@ PageType {
             model: 3
 
             Rectangle {
+                required property int index
+
                 width: 6
                 height: 10 + index * 5
                 radius: 3
