@@ -230,6 +230,9 @@ void CoreController::initControllers()
 
     m_updateUiController = new UpdateUiController(m_updateController, this);
     setQmlContextProperty("UpdateController", m_updateUiController);
+
+    m_appApiUiController = new AppApiUiController(this);
+    setQmlContextProperty("AppApiController", m_appApiUiController);
 }
 
 void CoreController::initAndroidController()

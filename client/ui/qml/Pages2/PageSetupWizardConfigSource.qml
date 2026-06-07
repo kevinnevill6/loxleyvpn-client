@@ -20,6 +20,7 @@ PageType {
     property int selectedServerIndex: -1
     property string statusText: ""
     property string accessCodeText: ""
+    property bool mockMode: AppApiController.mockMode
 
     readonly property string localConfigFileName: "test-awg-config.conf"
     readonly property var mockServers: [
@@ -27,6 +28,7 @@ PageType {
             "id": "nl-awg-1",
             "title": "Нидерланды 1",
             "country": "NL",
+            "city": "Amsterdam",
             "protocol": "amneziawg",
             "status": "online",
             "priority": 10
@@ -35,14 +37,16 @@ PageType {
             "id": "de-awg-1",
             "title": "Германия 1",
             "country": "DE",
+            "city": "Frankfurt",
             "protocol": "amneziawg",
             "status": "online",
             "priority": 20
         },
         {
-            "id": "reserve-xray-1",
+            "id": "nl-xray-reserve-1",
             "title": "Резервный сервер",
             "country": "NL",
+            "city": "Amsterdam",
             "protocol": "vless_reality",
             "status": "online",
             "priority": 90
@@ -57,6 +61,59 @@ PageType {
                 PageController.closePage()
             }
             PageController.goToPage(PageEnum.PageSetupWizardViewConfig)
+        }
+    }
+
+    Connections {
+        target: AppApiController
+
+        function onLoginSucceeded() {
+            root.statusText = ""
+            AppApiController.fetchMe()
+            AppApiController.fetchServers()
+        }
+
+        function onLoginFailed(message) {
+            root.statusText = message
+        }
+
+        function onMeFailed(message) {
+            root.statusText = message
+        }
+
+        function onServersFetched() {
+            if (AppApiController.servers.length === 0) {
+                root.statusText = qsTr("Backend вернул пустой список серверов")
+                return
+            }
+
+            root.statusText = ""
+            root.selectedServerIndex = -1
+            root.flowStep = 1
+            listView.positionViewAtBeginning()
+        }
+
+        function onServersFailed(message) {
+            root.statusText = message
+        }
+
+        function onConfigFetched(serverId, protocol, config, fakeConfig) {
+            if (fakeConfig) {
+                root.statusText = qsTr("Backend вернул тестовый config, реальное подключение недоступно.")
+                PageController.showNotificationMessage(root.statusText)
+                return
+            }
+
+            root.importAndConnectConfig(config, root.selectedServer().title)
+        }
+
+        function onConfigFailed(serverId, message, statusCode) {
+            if (statusCode === 501) {
+                root.statusText = qsTr("Резервный протокол пока не включён.")
+            } else {
+                root.statusText = message
+            }
+            PageController.showNotificationMessage(root.statusText)
         }
     }
 
@@ -112,12 +169,29 @@ PageType {
 
                 text: {
                     if (flowStep === 0) {
-                        return qsTr("Введите тестовый код доступа. Для PoC подходит любой непустой код.")
+                        return qsTr("Введите код доступа LoxleyVPN.")
                     }
                     if (flowStep === 1) {
                         return qsTr("Выберите сервер LoxleyVPN.")
                     }
                     return qsTr("Проверьте выбранный сервер и запустите тестовое подключение.")
+                }
+            }
+
+            TextFieldWithHeaderType {
+                id: apiBaseUrl
+
+                visible: flowStep === 0
+                Layout.fillWidth: true
+                Layout.rightMargin: 16
+                Layout.leftMargin: 16
+                Layout.bottomMargin: 12
+
+                headerText: qsTr("Backend URL")
+                textField.placeholderText: qsTr("http://192.168.x.x:8000")
+
+                Component.onCompleted: {
+                    textField.text = AppApiController.baseUrl
                 }
             }
 
@@ -130,7 +204,7 @@ PageType {
                 Layout.leftMargin: 16
 
                 headerText: qsTr("Код доступа")
-                textField.placeholderText: qsTr("Например: test")
+                textField.placeholderText: qsTr("TEST123")
                 textField.onTextChanged: root.accessCodeText = textField.text
                 rightButtonClickedOnEnter: true
                 clickedFunc: function() {
@@ -140,14 +214,35 @@ PageType {
 
             BasicButtonType {
                 visible: flowStep === 0
+                enabled: !AppApiController.busy
                 Layout.fillWidth: true
                 Layout.topMargin: 16
                 Layout.rightMargin: 16
                 Layout.leftMargin: 16
 
-                text: qsTr("Войти")
+                text: AppApiController.busy ? qsTr("Подождите...") : qsTr("Войти")
                 clickedFunc: function() {
                     root.login()
+                }
+            }
+
+            BasicButtonType {
+                visible: flowStep === 0 && statusText !== "" && !mockMode
+                enabled: !AppApiController.busy
+                Layout.fillWidth: true
+                Layout.topMargin: 12
+                Layout.rightMargin: 16
+                Layout.leftMargin: 16
+
+                defaultColor: AmneziaStyle.color.transparent
+                hoveredColor: AmneziaStyle.color.translucentWhite
+                pressedColor: AmneziaStyle.color.sheerWhite
+                textColor: AmneziaStyle.color.paleGray
+                borderWidth: 1
+
+                text: qsTr("Использовать mock mode")
+                clickedFunc: function() {
+                    root.enableMockMode()
                 }
             }
 
@@ -162,6 +257,18 @@ PageType {
                 wrapMode: Text.Wrap
                 text: statusText
             }
+
+            ParagraphTextType {
+                visible: flowStep === 1 && subscriptionSummary() !== ""
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                Layout.rightMargin: 16
+                Layout.leftMargin: 16
+                Layout.bottomMargin: 16
+
+                color: AmneziaStyle.color.mutedGray
+                text: subscriptionSummary()
+            }
         }
 
         delegate: ColumnLayout {
@@ -169,7 +276,7 @@ PageType {
             spacing: 0
 
             Repeater {
-                model: flowStep === 1 ? mockServers : []
+                model: flowStep === 1 ? currentServers() : []
 
                 CardWithIconsType {
                     Layout.fillWidth: true
@@ -179,7 +286,7 @@ PageType {
 
                     headerText: modelData.title
                     bodyText: modelData.status === "online" ? qsTr("Онлайн") : qsTr("Недоступен")
-                    footerText: modelData.country
+                    footerText: modelData.city !== "" ? modelData.city + ", " + modelData.country : modelData.country
                     leftImageSource: "qrc:/images/controls/globe-2.svg"
                     rightImageSource: "qrc:/images/controls/chevron-right.svg"
 
@@ -202,7 +309,7 @@ PageType {
 
                     headerText: selectedServer().title
                     bodyText: selectedServer().status === "online" ? qsTr("Онлайн") : qsTr("Недоступен")
-                    footerText: selectedServer().country
+                    footerText: selectedServer().city !== "" ? selectedServer().city + ", " + selectedServer().country : selectedServer().country
                     leftImageSource: "qrc:/images/controls/globe-2.svg"
                     rightImageSource: ""
                 }
@@ -212,8 +319,9 @@ PageType {
                     Layout.topMargin: 8
                     Layout.rightMargin: 16
                     Layout.leftMargin: 16
+                    enabled: !AppApiController.busy
 
-                    text: qsTr("Подключиться")
+                    text: AppApiController.busy ? qsTr("Подождите...") : qsTr("Подключиться")
                     clickedFunc: function() {
                         root.connectSelectedServer()
                     }
@@ -331,11 +439,27 @@ PageType {
 
     function login() {
         if (accessCodeText.trim() === "") {
-            statusText = qsTr("Введите любой тестовый код")
+            statusText = qsTr("Введите код доступа")
             return
         }
+
+        if (mockMode) {
+            statusText = ""
+            flowStep = 1
+            return
+        }
+
+        AppApiController.baseUrl = apiBaseUrl.textField.text.trim()
         statusText = ""
+        AppApiController.login(accessCodeText, AppApiController.deviceUuid, "", "android")
+    }
+
+    function enableMockMode() {
+        AppApiController.useMockMode()
+        statusText = ""
+        selectedServerIndex = -1
         flowStep = 1
+        listView.positionViewAtBeginning()
     }
 
     function selectServer(index) {
@@ -345,23 +469,47 @@ PageType {
         listView.positionViewAtBeginning()
     }
 
+    function currentServers() {
+        if (mockMode || !AppApiController.authenticated) {
+            return mockServers
+        }
+        return AppApiController.servers
+    }
+
     function selectedServer() {
-        if (selectedServerIndex < 0 || selectedServerIndex >= mockServers.length) {
+        const servers = currentServers()
+        if (selectedServerIndex < 0 || selectedServerIndex >= servers.length) {
             return {
                 "id": "",
                 "title": "",
                 "country": "",
+                "city": "",
                 "protocol": "",
                 "status": "",
                 "priority": 0
             }
         }
-        return mockServers[selectedServerIndex]
+        return servers[selectedServerIndex]
+    }
+
+    function subscriptionSummary() {
+        if (mockMode || !AppApiController.authenticated) {
+            return ""
+        }
+
+        const user = AppApiController.user
+        if (!user || !user.subscription_status) {
+            return ""
+        }
+
+        return qsTr("Подписка: ") + user.subscription_status + qsTr(" · устройств: ") + user.device_limit
     }
 
     function localConfigPaths() {
         const paths = [
             StandardPaths.writableLocation(StandardPaths.AppDataLocation) + "/" + localConfigFileName,
+            "/data/user/0/com.loxleyvpn.client/files/" + localConfigFileName,
+            "/data/data/com.loxleyvpn.client/files/" + localConfigFileName,
             StandardPaths.writableLocation(StandardPaths.DownloadLocation) + "/" + localConfigFileName,
             "/sdcard/Download/" + localConfigFileName,
             "/Users/igorbelocerkovec/projects/loxleyvpn-client-local/" + localConfigFileName
@@ -381,8 +529,18 @@ PageType {
             return
         }
 
+        if (mockMode) {
+            connectFromLocalConfig(server)
+            return
+        }
+
+        statusText = qsTr("Запрашиваем config...")
+        AppApiController.fetchConfig(server.id)
+    }
+
+    function connectFromLocalConfig(server) {
         if (server.protocol !== "amneziawg") {
-            statusText = qsTr("Резервный сервер есть в mock-списке. Подключение для него будет включено следующим этапом.")
+            statusText = qsTr("Резервный протокол пока не включён.")
             PageController.showNotificationMessage(statusText)
             return
         }
@@ -397,13 +555,17 @@ PageType {
         }
 
         if (configData === "") {
-            statusText = qsTr("Тестовый config не найден. Положите файл test-awg-config.conf вне Git: в loxleyvpn-client-local или в Downloads на тестовом устройстве.")
+            statusText = qsTr("Локальный config не найден. Положите test-awg-config.conf вне Git.")
             PageController.showNotificationMessage(statusText)
             return
         }
 
+        importAndConnectConfig(configData, server.title)
+    }
+
+    function importAndConnectConfig(configData, serverTitle) {
         if (!ImportController.extractConfigFromData(configData)) {
-            statusText = qsTr("Тестовый config найден, но не распознан импортом Amnezia.")
+            statusText = qsTr("Config найден, но не распознан импортом Amnezia.")
             return
         }
 
@@ -420,7 +582,7 @@ PageType {
 
         const importedServerId = ServersUiController.defaultServerId
         if (importedServerId !== "") {
-            ServersUiController.editServerName(importedServerId, server.title)
+            ServersUiController.editServerName(importedServerId, serverTitle)
         }
 
         statusText = ""

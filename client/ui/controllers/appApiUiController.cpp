@@ -1,0 +1,377 @@
+#include "appApiUiController.h"
+
+#include <algorithm>
+
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QNetworkRequest>
+#include <QSysInfo>
+#include <QUrl>
+#include <QUuid>
+
+#include "amneziaApplication.h"
+
+#ifndef LOXLEY_APP_API_BASE_URL
+#define LOXLEY_APP_API_BASE_URL "http://127.0.0.1:8000"
+#endif
+
+namespace
+{
+    constexpr int kRequestTimeoutMs = 10000;
+
+    QString normalizedBaseUrl(QString value)
+    {
+        value = value.trimmed();
+        while (value.endsWith('/')) {
+            value.chop(1);
+        }
+
+        return value;
+    }
+
+    QJsonObject objectFromBody(const QByteArray &body)
+    {
+        const QJsonDocument doc = QJsonDocument::fromJson(body);
+        return doc.isObject() ? doc.object() : QJsonObject {};
+    }
+}
+
+AppApiUiController::AppApiUiController(QObject *parent)
+    : QObject(parent),
+      m_baseUrl(normalizedBaseUrl(QStringLiteral(LOXLEY_APP_API_BASE_URL))),
+      m_deviceUuid(QUuid::createUuid().toString(QUuid::WithoutBraces))
+{
+}
+
+QString AppApiUiController::baseUrl() const
+{
+    return m_baseUrl;
+}
+
+void AppApiUiController::setBaseUrl(const QString &baseUrl)
+{
+    const QString normalized = normalizedBaseUrl(baseUrl);
+    if (m_baseUrl == normalized) {
+        return;
+    }
+
+    m_baseUrl = normalized;
+    emit baseUrlChanged();
+}
+
+QString AppApiUiController::deviceUuid() const
+{
+    return m_deviceUuid;
+}
+
+bool AppApiUiController::busy() const
+{
+    return m_pendingRequests > 0;
+}
+
+bool AppApiUiController::authenticated() const
+{
+    return !m_token.isEmpty();
+}
+
+bool AppApiUiController::mockMode() const
+{
+    return m_mockMode;
+}
+
+void AppApiUiController::setMockMode(bool enabled)
+{
+    if (m_mockMode == enabled) {
+        return;
+    }
+
+    m_mockMode = enabled;
+    emit mockModeChanged();
+}
+
+QVariantMap AppApiUiController::user() const
+{
+    return m_user;
+}
+
+QVariantList AppApiUiController::servers() const
+{
+    return m_servers;
+}
+
+void AppApiUiController::login(const QString &code, const QString &deviceUuid, const QString &deviceName, const QString &platform)
+{
+    const QString trimmedCode = code.trimmed();
+    if (trimmedCode.isEmpty()) {
+        emit loginFailed(tr("Введите код доступа"));
+        return;
+    }
+
+    QJsonObject body;
+    body["code"] = trimmedCode;
+    body["device_uuid"] = deviceUuid.trimmed().isEmpty() ? m_deviceUuid : deviceUuid.trimmed();
+    body["device_name"] = deviceName.trimmed().isEmpty() ? QSysInfo::prettyProductName() : deviceName.trimmed();
+    body["platform"] = platform.trimmed().isEmpty() ? QStringLiteral("android") : platform.trimmed();
+
+    sendJsonPost(QStringLiteral("/api/app/auth/code"), body, false,
+                 [this](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
+        if (error != QNetworkReply::NoError || statusCode != 200) {
+            emit loginFailed(errorMessage(statusCode, error, errorString));
+            return;
+        }
+
+        const QJsonObject payload = objectFromBody(body);
+        const QString token = payload.value("token").toString();
+        const QJsonObject user = payload.value("user").toObject();
+
+        if (token.isEmpty() || user.isEmpty()) {
+            emit loginFailed(tr("Backend вернул неполный ответ"));
+            return;
+        }
+
+        const bool wasAuthenticated = authenticated();
+        m_token = token;
+        setUserFromObject(user);
+        setMockMode(false);
+
+        if (!wasAuthenticated) {
+            emit authenticatedChanged();
+        }
+
+        emit loginSucceeded();
+    });
+}
+
+void AppApiUiController::fetchMe()
+{
+    if (!ensureAuthenticated()) {
+        emit meFailed(tr("Нужно войти заново"));
+        return;
+    }
+
+    sendGet(QStringLiteral("/api/app/me"), true,
+            [this](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
+        if (error != QNetworkReply::NoError || statusCode != 200) {
+            emit meFailed(errorMessage(statusCode, error, errorString));
+            return;
+        }
+
+        const QJsonObject user = objectFromBody(body).value("user").toObject();
+        if (user.isEmpty()) {
+            emit meFailed(tr("Backend не вернул данные подписки"));
+            return;
+        }
+
+        setUserFromObject(user);
+        emit meFetched();
+    });
+}
+
+void AppApiUiController::fetchServers()
+{
+    if (!ensureAuthenticated()) {
+        emit serversFailed(tr("Нужно войти заново"));
+        return;
+    }
+
+    sendGet(QStringLiteral("/api/app/servers"), true,
+            [this](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
+        if (error != QNetworkReply::NoError || statusCode != 200) {
+            emit serversFailed(errorMessage(statusCode, error, errorString));
+            return;
+        }
+
+        const QJsonDocument doc = QJsonDocument::fromJson(body);
+        if (!doc.isArray()) {
+            emit serversFailed(tr("Backend не вернул список серверов"));
+            return;
+        }
+
+        setServersFromArray(doc.array());
+        emit serversFetched();
+    });
+}
+
+void AppApiUiController::fetchConfig(const QString &serverId)
+{
+    if (!ensureAuthenticated()) {
+        emit configFailed(serverId, tr("Нужно войти заново"), 401);
+        return;
+    }
+
+    const QString trimmedServerId = serverId.trimmed();
+    if (trimmedServerId.isEmpty()) {
+        emit configFailed(serverId, tr("Сервер не выбран"), 0);
+        return;
+    }
+
+    const QString path = QStringLiteral("/api/app/servers/%1/config")
+        .arg(QString::fromUtf8(QUrl::toPercentEncoding(trimmedServerId)));
+
+    sendGet(path, true,
+            [this, trimmedServerId](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
+        if (error != QNetworkReply::NoError || statusCode != 200) {
+            const QJsonObject payload = objectFromBody(body);
+            const QString message = payload.value("message").toString(errorMessage(statusCode, error, errorString));
+            emit configFailed(trimmedServerId, message, statusCode);
+            return;
+        }
+
+        const QJsonObject payload = objectFromBody(body);
+        const QString protocol = payload.value("protocol").toString();
+        const QString config = payload.value("config").toString();
+
+        if (protocol.isEmpty() || config.isEmpty()) {
+            emit configFailed(trimmedServerId, tr("Backend не вернул config"), statusCode);
+            return;
+        }
+
+        emit configFetched(trimmedServerId, protocol, config, isFakeConfig(config));
+    });
+}
+
+void AppApiUiController::clearSession()
+{
+    const bool wasAuthenticated = authenticated();
+    m_token.clear();
+    m_user.clear();
+    m_servers.clear();
+
+    if (wasAuthenticated) {
+        emit authenticatedChanged();
+    }
+    emit userChanged();
+    emit serversChanged();
+}
+
+void AppApiUiController::useMockMode()
+{
+    clearSession();
+    setMockMode(true);
+}
+
+void AppApiUiController::sendJsonPost(const QString &path, const QJsonObject &body, bool authenticated, ResponseHandler handler)
+{
+    sendRequest(QStringLiteral("POST"), path, QJsonDocument(body).toJson(QJsonDocument::Compact), authenticated, std::move(handler));
+}
+
+void AppApiUiController::sendGet(const QString &path, bool authenticated, ResponseHandler handler)
+{
+    sendRequest(QStringLiteral("GET"), path, {}, authenticated, std::move(handler));
+}
+
+void AppApiUiController::sendRequest(const QString &method, const QString &path, const QByteArray &body, bool authenticated, ResponseHandler handler)
+{
+    const QUrl url(endpoint(path));
+    if (!url.isValid() || url.scheme().isEmpty() || url.host().isEmpty()) {
+        handler(0, {}, QNetworkReply::UnknownNetworkError, tr("Некорректный backend URL"));
+        return;
+    }
+
+    QNetworkRequest request(url);
+    request.setTransferTimeout(kRequestTimeoutMs);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+
+    if (authenticated) {
+        request.setRawHeader("Authorization", QByteArray("Bearer ") + m_token.toUtf8());
+    }
+
+    beginRequest();
+
+    QNetworkReply *reply = nullptr;
+    if (method == QLatin1String("POST")) {
+        reply = amnApp->networkManager()->post(request, body);
+    } else {
+        reply = amnApp->networkManager()->get(request);
+    }
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, handler = std::move(handler)]() mutable {
+        const int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QNetworkReply::NetworkError error = reply->error();
+        const QString errorString = reply->errorString();
+        const QByteArray responseBody = reply->readAll();
+        reply->deleteLater();
+        endRequest();
+        handler(statusCode, responseBody, error, errorString);
+    });
+}
+
+QString AppApiUiController::endpoint(const QString &path) const
+{
+    return normalizedBaseUrl(m_baseUrl) + path;
+}
+
+bool AppApiUiController::ensureAuthenticated()
+{
+    return !m_token.isEmpty();
+}
+
+void AppApiUiController::beginRequest()
+{
+    const bool wasBusy = busy();
+    ++m_pendingRequests;
+    if (!wasBusy) {
+        emit busyChanged();
+    }
+}
+
+void AppApiUiController::endRequest()
+{
+    const bool wasBusy = busy();
+    m_pendingRequests = std::max(0, m_pendingRequests - 1);
+    if (wasBusy != busy()) {
+        emit busyChanged();
+    }
+}
+
+void AppApiUiController::setUserFromObject(const QJsonObject &object)
+{
+    m_user = object.toVariantMap();
+    emit userChanged();
+}
+
+void AppApiUiController::setServersFromArray(const QJsonArray &array)
+{
+    QVariantList servers;
+    for (const QJsonValue &value : array) {
+        if (value.isObject()) {
+            servers.append(value.toObject().toVariantMap());
+        }
+    }
+
+    m_servers = servers;
+    emit serversChanged();
+}
+
+QString AppApiUiController::errorMessage(int statusCode, QNetworkReply::NetworkError error, const QString &errorString) const
+{
+    if (error != QNetworkReply::NoError) {
+        return tr("Backend недоступен: %1").arg(errorString);
+    }
+
+    if (statusCode == 401) {
+        return tr("Код не принят backend");
+    }
+
+    if (statusCode == 404) {
+        return tr("App API выключен или endpoint недоступен");
+    }
+
+    if (statusCode == 501) {
+        return tr("Резервный протокол пока не включён");
+    }
+
+    if (statusCode >= 500) {
+        return tr("Backend вернул ошибку");
+    }
+
+    return tr("Не удалось выполнить запрос");
+}
+
+bool AppApiUiController::isFakeConfig(const QString &config) const
+{
+    return config.contains(QStringLiteral("TEST_ONLY_FAKE"), Qt::CaseInsensitive)
+        || config.contains(QStringLiteral("DO_NOT_USE"), Qt::CaseInsensitive)
+        || config.contains(QStringLiteral("example.invalid"), Qt::CaseInsensitive);
+}

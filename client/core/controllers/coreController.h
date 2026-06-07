@@ -27,6 +27,7 @@
 #include "ui/controllers/systemController.h"
 #include "ui/controllers/languageUiController.h"
 #include "ui/controllers/updateUiController.h"
+#include "ui/controllers/appApiUiController.h"
 #include "ui/controllers/api/servicesCatalogUiController.h"
 #include "ui/controllers/networkReachabilityController.h"
 
@@ -174,6 +175,7 @@ private:
     AllowedDnsUiController* m_allowedDnsUiController;
     LanguageUiController* m_languageUiController;
     UpdateUiController* m_updateUiController;
+    AppApiUiController* m_appApiUiController;
 
     SubscriptionUiController* m_subscriptionUiController;
     ApiNewsUiController* m_apiNewsUiController;
