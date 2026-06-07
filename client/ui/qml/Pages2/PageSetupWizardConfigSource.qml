@@ -466,11 +466,10 @@ PageType {
             anchors.topMargin: 34 + PageController.safeAreaTopMargin
             anchors.bottomMargin: root.bottomNavHeight + root.bottomNavSafeMargin
             contentWidth: width
-            contentHeight: pageColumn.implicitHeight + 34
-            interactive: contentHeight > height + 1
+            contentHeight: Math.max(height, pageColumn.implicitHeight)
+            interactive: pageColumn.implicitHeight > height + 1
             boundsBehavior: interactive ? Flickable.DragAndOvershootBounds : Flickable.StopAtBounds
             clip: true
-            bottomMargin: 18
 
             onContentHeightChanged: {
                 if (!interactive) {
@@ -722,12 +721,6 @@ PageType {
             width: parent.width
             spacing: 22
 
-            ScreenHeader {
-                width: parent.width
-                title: "Локации"
-                subtitle: ""
-            }
-
             Row {
                 width: parent.width
                 spacing: 10
@@ -917,14 +910,6 @@ PageType {
                 width: parent.width
                 spacing: 18
 
-                ScreenHeader {
-                    id: profileHeader
-
-                    width: parent.width
-                title: "Профиль"
-                subtitle: ""
-            }
-
                 Item {
                     id: profileHero
 
@@ -1016,7 +1001,7 @@ PageType {
 
             Item {
                 width: parent.width
-                height: Math.max(36, appScroll.height - profileHeader.implicitHeight - profileHero.height - profileSettingsRow.implicitHeight - profileHelpRow.implicitHeight - versionLabel.implicitHeight - profileRoot.spacing * 5 - 28)
+                height: Math.max(36, appScroll.height - profileHero.height - profileSettingsRow.implicitHeight - profileHelpRow.implicitHeight - versionLabel.implicitHeight - profileRoot.spacing * 4 - 28)
             }
 
             Text {
