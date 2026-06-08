@@ -123,6 +123,7 @@ PageType {
         target: AppApiController
 
         function onLoginSucceeded() {
+            Qt.inputMethod.hide()
             root.guestMode = false
             root.statusText = "Профиль подключён"
             root.authStep = "email"
@@ -511,6 +512,12 @@ PageType {
                         text: AppApiController.busy ? (root.authStep === "code" ? "Проверяем..." : "Отправляем код...") : (root.authStep === "code" ? "Войти" : "Продолжить")
                         enabled: !AppApiController.busy
                         onClicked: root.authStep === "code" ? root.verifyEmailCode() : root.requestEmailCode()
+                    }
+
+                    Item {
+                        width: parent.width
+                        height: root.authStep === "code" ? 18 : 0
+                        visible: root.authStep === "code"
                     }
 
                     Text {
@@ -1385,7 +1392,7 @@ PageType {
 
     function requestEmailCode() {
         var trimmedEmail = root.emailText.trim()
-        if (trimmedEmail.length === 0) {
+        if (trimmedEmail.length === 0 || !root.isValidEmail(trimmedEmail)) {
             root.emailError = true
             root.statusText = ""
             emailInput.focusInput()
@@ -1417,6 +1424,14 @@ PageType {
         root.codeError = false
         root.statusText = "Проверяем код"
         AppApiController.verifyEmailCode(root.pendingEmail || root.emailText.trim(), trimmedCode, AppApiController.deviceUuid, "Android", "android")
+    }
+
+    function isValidEmail(value) {
+        var email = value.trim()
+        if (email.length < 6 || email.length > 320 || email.indexOf(" ") !== -1) {
+            return false
+        }
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
     }
 
     function enterGuestMode() {
@@ -2197,6 +2212,7 @@ PageType {
 
         function focusInput() {
             input.forceActiveFocus()
+            Qt.inputMethod.show()
         }
     }
 
@@ -2266,11 +2282,12 @@ PageType {
 
         MouseArea {
             anchors.fill: parent
-            onClicked: hiddenInput.forceActiveFocus()
+            onClicked: codeRoot.focusInput()
         }
 
         function focusInput() {
             hiddenInput.forceActiveFocus()
+            Qt.inputMethod.show()
         }
     }
 

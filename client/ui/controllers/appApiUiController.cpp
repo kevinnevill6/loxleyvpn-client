@@ -6,6 +6,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkRequest>
+#include <QRegularExpression>
 #include <QSysInfo>
 #include <QUrl>
 #include <QUuid>
@@ -34,6 +35,12 @@ namespace
     {
         const QJsonDocument doc = QJsonDocument::fromJson(body);
         return doc.isObject() ? doc.object() : QJsonObject {};
+    }
+
+    bool isEmailLike(const QString &email)
+    {
+        static const QRegularExpression pattern(QStringLiteral(R"(^[^\s@]+@[^\s@]+\.[^\s@]+$)"));
+        return email.size() >= 6 && email.size() <= 320 && pattern.match(email).hasMatch();
     }
 }
 
@@ -151,7 +158,7 @@ void AppApiUiController::loginWithEmail(const QString &email, const QString &dev
 void AppApiUiController::requestEmailCode(const QString &email, const QString &deviceUuid, const QString &deviceName, const QString &platform)
 {
     const QString trimmedEmail = email.trimmed().toLower();
-    if (trimmedEmail.isEmpty()) {
+    if (!isEmailLike(trimmedEmail)) {
         emit emailCodeRequestFailed(tr("Введите email"));
         return;
     }
@@ -180,7 +187,7 @@ void AppApiUiController::verifyEmailCode(const QString &email, const QString &co
 {
     const QString trimmedEmail = email.trimmed().toLower();
     const QString trimmedCode = code.trimmed();
-    if (trimmedEmail.isEmpty()) {
+    if (!isEmailLike(trimmedEmail)) {
         emit loginFailed(tr("Введите email"));
         return;
     }
