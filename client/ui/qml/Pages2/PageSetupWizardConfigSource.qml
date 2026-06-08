@@ -290,7 +290,7 @@ PageType {
         interval: 650
         repeat: false
         onTriggered: {
-            root.codeText = ""
+            codeInput.clearInput()
             root.codeErrorCleared = true
             codeInput.focusInput()
             codeErrorResetTimer.restart()
@@ -513,7 +513,9 @@ PageType {
                                     root.resetCodeError()
                                 }
                             }
-                            onAccepted: root.verifyEmailCode()
+                            onAccepted: function(code) {
+                                root.verifyEmailCode(code)
+                            }
                         }
                     }
 
@@ -1429,8 +1431,13 @@ PageType {
         AppApiController.requestEmailCode(trimmedEmail, AppApiController.deviceUuid, "Android", "android")
     }
 
-    function verifyEmailCode() {
-        var trimmedCode = root.codeText.replace(/\D/g, "")
+    function verifyEmailCode(codeValue) {
+        if (AppApiController.busy) {
+            return
+        }
+
+        var sourceCode = codeValue === undefined ? root.codeText : codeValue
+        var trimmedCode = sourceCode.replace(/\D/g, "")
         if (trimmedCode.length !== 6) {
             root.showCodeError("Введите 6 цифр", false)
             return
@@ -2258,7 +2265,8 @@ PageType {
         property alias text: hiddenInput.text
         property bool hasError: false
         property bool errorCleared: false
-        signal accepted()
+        property bool submittedFullCode: false
+        signal accepted(string code)
 
         height: 58
 
@@ -2314,11 +2322,26 @@ PageType {
             validator: RegularExpressionValidator {
                 regularExpression: /^[0-9]*$/
             }
-            onAccepted: codeRoot.accepted()
+            onAccepted: {
+                if (text.length === 6 && !codeRoot.submittedFullCode) {
+                    codeRoot.submittedFullCode = true
+                    codeRoot.accepted(text)
+                }
+            }
             onTextChanged: {
-                text = text.replace(/\D/g, "").slice(0, 6)
-                if (text.length === 6) {
-                    codeRoot.accepted()
+                var sanitized = text.replace(/\D/g, "").slice(0, 6)
+                if (text !== sanitized) {
+                    text = sanitized
+                    return
+                }
+
+                if (text.length < 6) {
+                    codeRoot.submittedFullCode = false
+                }
+
+                if (text.length === 6 && !codeRoot.submittedFullCode) {
+                    codeRoot.submittedFullCode = true
+                    codeRoot.accepted(text)
                 }
             }
         }
@@ -2331,6 +2354,11 @@ PageType {
         function focusInput() {
             hiddenInput.forceActiveFocus()
             Qt.inputMethod.show()
+        }
+
+        function clearInput() {
+            codeRoot.submittedFullCode = false
+            hiddenInput.clear()
         }
     }
 
