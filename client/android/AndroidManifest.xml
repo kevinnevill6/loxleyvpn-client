@@ -45,6 +45,7 @@
             android:configChanges="uiMode|screenSize|smallestScreenSize|screenLayout|orientation|density
                 |fontScale|layoutDirection|locale|keyboard|keyboardHidden|navigation|mcc|mnc"
             android:launchMode="singleInstance"
+            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize|stateUnchanged"
             android:enableOnBackInvokedCallback="false"
             android:exported="true">
