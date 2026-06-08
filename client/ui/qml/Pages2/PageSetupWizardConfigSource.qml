@@ -1031,6 +1031,22 @@ PageType {
                             }
                         }
                     }
+
+                    Item {
+                        width: parent.width
+                        height: 118
+                        visible: root.filteredServers().length === 0
+
+                        Text {
+                            anchors.centerIn: parent
+                            width: parent.width - 24
+                            text: AppApiController.authenticated ? "Локации пока недоступны" : "Войдите, чтобы увидеть локации"
+                            color: "#B4C3B9"
+                            font.pixelSize: 15
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                        }
+                    }
                 }
             }
         }
@@ -1443,10 +1459,13 @@ PageType {
     }
 
     function currentServers() {
-        if (root.realApiMode && AppApiController.servers && AppApiController.servers.length > 0) {
+        if (AppApiController.authenticated && AppApiController.servers && AppApiController.servers.length > 0) {
             return AppApiController.servers
         }
-        return root.fallbackServers
+        if (AppApiController.mockMode) {
+            return root.fallbackServers
+        }
+        return []
     }
 
     function filteredServers() {
