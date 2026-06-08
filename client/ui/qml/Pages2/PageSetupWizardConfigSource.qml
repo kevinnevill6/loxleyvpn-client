@@ -30,6 +30,7 @@ PageType {
     property string backendUrlText: AppApiController.baseUrl
     property bool emailError: false
     property bool codeError: false
+    property bool codeErrorCleared: false
     property int emailShakeOffset: 0
     property int codeShakeOffset: 0
 
@@ -135,13 +136,10 @@ PageType {
         }
 
         function onLoginFailed(message) {
-            root.statusText = message || "Не удалось войти"
             if (root.authStep === "code") {
-                root.codeError = true
-                codeShakeAnimation.restart()
-                Qt.callLater(function() {
-                    codeInput.focusInput()
-                })
+                root.showCodeError(message || "Код неверный или устарел")
+            } else {
+                root.statusText = message || "Не удалось войти"
             }
         }
 
@@ -285,6 +283,25 @@ PageType {
             duration: 65
             easing.type: Easing.OutQuad
         }
+    }
+
+    Timer {
+        id: codeErrorClearTimer
+        interval: 650
+        repeat: false
+        onTriggered: {
+            root.codeText = ""
+            root.codeErrorCleared = true
+            codeInput.focusInput()
+            codeErrorResetTimer.restart()
+        }
+    }
+
+    Timer {
+        id: codeErrorResetTimer
+        interval: 650
+        repeat: false
+        onTriggered: root.resetCodeError()
     }
 
     Rectangle {
@@ -488,11 +505,12 @@ PageType {
                             x: root.codeShakeOffset
                             text: root.codeText
                             hasError: root.codeError
+                            errorCleared: root.codeErrorCleared
 
                             onTextChanged: {
                                 root.codeText = text
                                 if (root.codeError && text.length > 0) {
-                                    root.codeError = false
+                                    root.resetCodeError()
                                 }
                             }
                             onAccepted: root.verifyEmailCode()
@@ -1414,16 +1432,31 @@ PageType {
     function verifyEmailCode() {
         var trimmedCode = root.codeText.replace(/\D/g, "")
         if (trimmedCode.length !== 6) {
-            root.codeError = true
-            root.statusText = "Введите 6 цифр"
-            codeInput.focusInput()
-            codeShakeAnimation.restart()
+            root.showCodeError("Введите 6 цифр", false)
             return
         }
 
         root.codeError = false
         root.statusText = "Проверяем код"
         AppApiController.verifyEmailCode(root.pendingEmail || root.emailText.trim(), trimmedCode, AppApiController.deviceUuid, "Android", "android")
+    }
+
+    function showCodeError(message, clearAfterShake) {
+        if (clearAfterShake === undefined) {
+            clearAfterShake = true
+        }
+
+        codeErrorClearTimer.stop()
+        codeErrorResetTimer.stop()
+        root.statusText = message || "Код неверный или устарел"
+        root.codeError = true
+        root.codeErrorCleared = false
+        codeShakeAnimation.restart()
+        codeInput.focusInput()
+
+        if (clearAfterShake) {
+            codeErrorClearTimer.restart()
+        }
     }
 
     function isValidEmail(value) {
@@ -1461,7 +1494,10 @@ PageType {
 
     function resetCodeError() {
         root.codeError = false
+        root.codeErrorCleared = false
         root.codeShakeOffset = 0
+        codeErrorClearTimer.stop()
+        codeErrorResetTimer.stop()
         codeShakeAnimation.stop()
     }
 
@@ -2221,6 +2257,7 @@ PageType {
 
         property alias text: hiddenInput.text
         property bool hasError: false
+        property bool errorCleared: false
         signal accepted()
 
         height: 58
@@ -2238,7 +2275,7 @@ PageType {
                     width: (codeRoot.width - 40) / 6
                     height: codeRoot.height
                     radius: 17
-                    color: Qt.rgba(1, 1, 1, 0.062)
+                    color: codeRoot.hasError && !codeRoot.errorCleared ? Qt.rgba(1, 0.28, 0.30, 0.88) : Qt.rgba(1, 1, 1, 0.062)
                     border.color: codeRoot.hasError ? Qt.rgba(1, 0.33, 0.34, 0.68) : (hiddenInput.activeFocus ? Qt.rgba(0.70, 0.92, 0.55, 0.52) : Qt.rgba(0.70, 0.90, 0.55, 0.26))
                     border.width: 1
 
@@ -2252,6 +2289,12 @@ PageType {
                     }
 
                     Behavior on border.color {
+                        ColorAnimation {
+                            duration: 140
+                        }
+                    }
+
+                    Behavior on color {
                         ColorAnimation {
                             duration: 140
                         }
