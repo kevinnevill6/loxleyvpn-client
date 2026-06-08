@@ -145,9 +145,14 @@ void AppApiUiController::login(const QString &code, const QString &deviceUuid, c
 
 void AppApiUiController::loginWithEmail(const QString &email, const QString &deviceUuid, const QString &deviceName, const QString &platform)
 {
+    requestEmailCode(email, deviceUuid, deviceName, platform);
+}
+
+void AppApiUiController::requestEmailCode(const QString &email, const QString &deviceUuid, const QString &deviceName, const QString &platform)
+{
     const QString trimmedEmail = email.trimmed().toLower();
     if (trimmedEmail.isEmpty()) {
-        emit loginFailed(tr("Введите email"));
+        emit emailCodeRequestFailed(tr("Введите email"));
         return;
     }
 
@@ -157,7 +162,41 @@ void AppApiUiController::loginWithEmail(const QString &email, const QString &dev
     body["device_name"] = deviceName.trimmed().isEmpty() ? QSysInfo::prettyProductName() : deviceName.trimmed();
     body["platform"] = platform.trimmed().isEmpty() ? QStringLiteral("android") : platform.trimmed();
 
-    sendJsonPost(QStringLiteral("/api/app/auth/email"), body, false,
+    sendJsonPost(QStringLiteral("/api/app/auth/email/request-code"), body, false,
+                 [this](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
+        if (error != QNetworkReply::NoError || statusCode != 200) {
+            const QJsonObject payload = objectFromBody(body);
+            const QString message = payload.value("message").toString(errorMessage(statusCode, error, errorString));
+            emit emailCodeRequestFailed(message);
+            return;
+        }
+
+        const QJsonObject payload = objectFromBody(body);
+        emit emailCodeRequested(payload.value("email").toString(), payload.value("message").toString());
+    });
+}
+
+void AppApiUiController::verifyEmailCode(const QString &email, const QString &code, const QString &deviceUuid, const QString &deviceName, const QString &platform)
+{
+    const QString trimmedEmail = email.trimmed().toLower();
+    const QString trimmedCode = code.trimmed();
+    if (trimmedEmail.isEmpty()) {
+        emit loginFailed(tr("Введите email"));
+        return;
+    }
+    if (trimmedCode.isEmpty()) {
+        emit loginFailed(tr("Введите код"));
+        return;
+    }
+
+    QJsonObject body;
+    body["email"] = trimmedEmail;
+    body["code"] = trimmedCode;
+    body["device_uuid"] = deviceUuid.trimmed().isEmpty() ? m_deviceUuid : deviceUuid.trimmed();
+    body["device_name"] = deviceName.trimmed().isEmpty() ? QSysInfo::prettyProductName() : deviceName.trimmed();
+    body["platform"] = platform.trimmed().isEmpty() ? QStringLiteral("android") : platform.trimmed();
+
+    sendJsonPost(QStringLiteral("/api/app/auth/email/verify-code"), body, false,
                  [this](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
         if (error != QNetworkReply::NoError || statusCode != 200) {
             const QJsonObject payload = objectFromBody(body);

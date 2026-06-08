@@ -20,13 +20,18 @@ PageType {
     property bool guestMode: false
     property bool russianBypass: true
     property bool sortAscending: true
+    property string authStep: "email"
     property string emailText: ""
+    property string pendingEmail: ""
+    property string codeText: ""
     property string statusText: ""
     property string toastText: ""
     property string searchText: ""
     property string backendUrlText: AppApiController.baseUrl
     property bool emailError: false
+    property bool codeError: false
     property int emailShakeOffset: 0
+    property int codeShakeOffset: 0
 
     readonly property bool authScreenVisible: !AppApiController.authenticated && !guestMode
     readonly property bool realApiMode: AppApiController.authenticated && !AppApiController.mockMode
@@ -98,7 +103,7 @@ PageType {
 
     onAuthScreenVisibleChanged: {
         if (root.authScreenVisible) {
-            root.resetEmailError()
+            root.resetAuthForm()
             root.statusText = ""
             Qt.callLater(function() {
                 authScroll.contentY = 0
@@ -120,6 +125,9 @@ PageType {
         function onLoginSucceeded() {
             root.guestMode = false
             root.statusText = "Профиль подключён"
+            root.authStep = "email"
+            root.codeText = ""
+            root.pendingEmail = ""
             root.currentTab = root.tabHome
             AppApiController.fetchMe()
             AppApiController.fetchServers()
@@ -127,6 +135,34 @@ PageType {
 
         function onLoginFailed(message) {
             root.statusText = message || "Не удалось войти"
+            if (root.authStep === "code") {
+                root.codeError = true
+                codeShakeAnimation.restart()
+                Qt.callLater(function() {
+                    codeInput.focusInput()
+                })
+            }
+        }
+
+        function onEmailCodeRequested(email, message) {
+            root.pendingEmail = email && email.length > 0 ? email : root.emailText.trim()
+            root.authStep = "code"
+            root.codeText = ""
+            root.statusText = ""
+            root.resetEmailError()
+            root.resetCodeError()
+            Qt.callLater(function() {
+                codeInput.focusInput()
+            })
+        }
+
+        function onEmailCodeRequestFailed(message) {
+            root.statusText = message || "Не удалось отправить код"
+            root.emailError = true
+            emailShakeAnimation.restart()
+            Qt.callLater(function() {
+                emailInput.focusInput()
+            })
         }
 
         function onMeFetched() {
@@ -211,6 +247,39 @@ PageType {
         NumberAnimation {
             target: root
             property: "emailShakeOffset"
+            to: 0
+            duration: 65
+            easing.type: Easing.OutQuad
+        }
+    }
+
+    SequentialAnimation {
+        id: codeShakeAnimation
+
+        NumberAnimation {
+            target: root
+            property: "codeShakeOffset"
+            to: -8
+            duration: 45
+            easing.type: Easing.OutQuad
+        }
+        NumberAnimation {
+            target: root
+            property: "codeShakeOffset"
+            to: 8
+            duration: 70
+            easing.type: Easing.InOutQuad
+        }
+        NumberAnimation {
+            target: root
+            property: "codeShakeOffset"
+            to: -5
+            duration: 60
+            easing.type: Easing.InOutQuad
+        }
+        NumberAnimation {
+            target: root
+            property: "codeShakeOffset"
             to: 0
             duration: 65
             easing.type: Easing.OutQuad
@@ -343,7 +412,7 @@ PageType {
                     Text {
                         width: parent.width
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "Добро пожаловать"
+                        text: root.authStep === "code" ? "Введите код" : "Добро пожаловать"
                         color: "#F7FBFF"
                         font.family: "sans-serif-medium"
                         font.pixelSize: 36
@@ -357,7 +426,7 @@ PageType {
 
                     Text {
                         width: parent.width
-                        text: "Войдите или зарегистрируйтесь"
+                        text: root.authStep === "code" ? "Мы отправили 6 цифр на email" : "Войдите или зарегистрируйтесь"
                         color: "#B5C4BB"
                         font.pixelSize: 20
                         lineHeight: 1.18
@@ -382,6 +451,7 @@ PageType {
                         width: parent.width
                         height: 60
                         x: root.emailShakeOffset
+                        visible: root.authStep === "email"
                         text: root.emailText
                         placeholderText: "Введите email"
                         hasError: root.emailError
@@ -393,7 +463,39 @@ PageType {
                                 root.emailError = false
                             }
                         }
-                        onAccepted: root.loginWithEmail()
+                        onAccepted: root.requestEmailCode()
+                    }
+
+                    Column {
+                        width: parent.width
+                        visible: root.authStep === "code"
+                        spacing: 14
+
+                        Text {
+                            width: parent.width
+                            text: root.pendingEmail
+                            color: "#AEBFA9"
+                            font.pixelSize: 14
+                            horizontalAlignment: Text.AlignHCenter
+                            elide: Text.ElideMiddle
+                            maximumLineCount: 1
+                        }
+
+                        LoxleyCodeInput {
+                            id: codeInput
+                            width: parent.width
+                            x: root.codeShakeOffset
+                            text: root.codeText
+                            hasError: root.codeError
+
+                            onTextChanged: {
+                                root.codeText = text
+                                if (root.codeError && text.length > 0) {
+                                    root.codeError = false
+                                }
+                            }
+                            onAccepted: root.verifyEmailCode()
+                        }
                     }
 
                     Item {
@@ -402,13 +504,32 @@ PageType {
                     }
 
                     LoxleyButton {
-                        width: parent.width
+                        width: root.authStep === "code" ? Math.min(parent.width, 300) : parent.width
                         height: 60
                         anchors.horizontalCenter: parent.horizontalCenter
                         labelPixelSize: 18
-                        text: AppApiController.busy ? "Подключаем профиль..." : "Продолжить"
+                        text: AppApiController.busy ? (root.authStep === "code" ? "Проверяем..." : "Отправляем код...") : (root.authStep === "code" ? "Войти" : "Продолжить")
                         enabled: !AppApiController.busy
-                        onClicked: root.loginWithEmail()
+                        onClicked: root.authStep === "code" ? root.verifyEmailCode() : root.requestEmailCode()
+                    }
+
+                    Text {
+                        width: parent.width
+                        visible: root.authStep === "code"
+                        text: "Изменить email"
+                        color: root.loxleyAccent
+                        font.pixelSize: 14
+                        horizontalAlignment: Text.AlignHCenter
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                root.authStep = "email"
+                                root.codeText = ""
+                                root.resetCodeError()
+                                root.statusText = ""
+                            }
+                        }
                     }
 
                     Item {
@@ -1246,7 +1367,7 @@ PageType {
         }
     }
 
-    function loginWithEmail() {
+    function requestEmailCode() {
         var trimmedEmail = root.emailText.trim()
         if (trimmedEmail.length === 0) {
             root.emailError = true
@@ -1257,19 +1378,36 @@ PageType {
         }
 
         root.emailError = false
+        root.resetCodeError()
         if (root.backendUrlText.trim().length > 0) {
             AppApiController.baseUrl = root.backendUrlText.trim()
         }
 
-        root.statusText = "Подключаем профиль"
-        AppApiController.loginWithEmail(trimmedEmail, AppApiController.deviceUuid, "Android", "android")
+        root.pendingEmail = trimmedEmail
+        root.statusText = "Отправляем код"
+        AppApiController.requestEmailCode(trimmedEmail, AppApiController.deviceUuid, "Android", "android")
+    }
+
+    function verifyEmailCode() {
+        var trimmedCode = root.codeText.replace(/\D/g, "")
+        if (trimmedCode.length !== 6) {
+            root.codeError = true
+            root.statusText = "Введите 6 цифр"
+            codeInput.focusInput()
+            codeShakeAnimation.restart()
+            return
+        }
+
+        root.codeError = false
+        root.statusText = "Проверяем код"
+        AppApiController.verifyEmailCode(root.pendingEmail || root.emailText.trim(), trimmedCode, AppApiController.deviceUuid, "Android", "android")
     }
 
     function enterGuestMode() {
         root.guestMode = true
         root.currentTab = root.tabHome
         root.statusText = ""
-        root.resetEmailError()
+        root.resetAuthForm()
     }
 
     function requireAuth() {
@@ -1288,6 +1426,20 @@ PageType {
         root.emailError = false
         root.emailShakeOffset = 0
         emailShakeAnimation.stop()
+    }
+
+    function resetCodeError() {
+        root.codeError = false
+        root.codeShakeOffset = 0
+        codeShakeAnimation.stop()
+    }
+
+    function resetAuthForm() {
+        root.authStep = "email"
+        root.codeText = ""
+        root.pendingEmail = ""
+        root.resetEmailError()
+        root.resetCodeError()
     }
 
     function currentServers() {
@@ -2026,6 +2178,80 @@ PageType {
 
         function focusInput() {
             input.forceActiveFocus()
+        }
+    }
+
+    component LoxleyCodeInput: Item {
+        id: codeRoot
+
+        property alias text: hiddenInput.text
+        property bool hasError: false
+        signal accepted()
+
+        height: 58
+
+        Row {
+            anchors.fill: parent
+            spacing: 8
+
+            Repeater {
+                model: 6
+
+                Rectangle {
+                    required property int index
+
+                    width: (codeRoot.width - 40) / 6
+                    height: codeRoot.height
+                    radius: 17
+                    color: Qt.rgba(1, 1, 1, 0.062)
+                    border.color: codeRoot.hasError ? Qt.rgba(1, 0.33, 0.34, 0.68) : (hiddenInput.activeFocus ? Qt.rgba(0.70, 0.92, 0.55, 0.52) : Qt.rgba(0.70, 0.90, 0.55, 0.26))
+                    border.width: 1
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: hiddenInput.text.length > index ? hiddenInput.text.charAt(index) : ""
+                        color: "#F7FBFF"
+                        font.family: "sans-serif-medium"
+                        font.pixelSize: 22
+                        font.weight: Font.DemiBold
+                    }
+
+                    Behavior on border.color {
+                        ColorAnimation {
+                            duration: 140
+                        }
+                    }
+                }
+            }
+        }
+
+        TextInput {
+            id: hiddenInput
+            anchors.fill: parent
+            opacity: 0.01
+            color: "transparent"
+            cursorVisible: false
+            inputMethodHints: Qt.ImhDigitsOnly
+            maximumLength: 6
+            validator: RegularExpressionValidator {
+                regularExpression: /^[0-9]*$/
+            }
+            onAccepted: codeRoot.accepted()
+            onTextChanged: {
+                text = text.replace(/\D/g, "").slice(0, 6)
+                if (text.length === 6) {
+                    codeRoot.accepted()
+                }
+            }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: hiddenInput.forceActiveFocus()
+        }
+
+        function focusInput() {
+            hiddenInput.forceActiveFocus()
         }
     }
 

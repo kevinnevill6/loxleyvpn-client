@@ -37,6 +37,8 @@ public:
 public slots:
     void login(const QString &code, const QString &deviceUuid, const QString &deviceName, const QString &platform);
     void loginWithEmail(const QString &email, const QString &deviceUuid, const QString &deviceName, const QString &platform);
+    void requestEmailCode(const QString &email, const QString &deviceUuid, const QString &deviceName, const QString &platform);
+    void verifyEmailCode(const QString &email, const QString &code, const QString &deviceUuid, const QString &deviceName, const QString &platform);
     void fetchMe();
     void fetchServers();
     void fetchConfig(const QString &serverId);
@@ -53,6 +55,8 @@ signals:
 
     void loginSucceeded();
     void loginFailed(const QString &message);
+    void emailCodeRequested(const QString &email, const QString &message);
+    void emailCodeRequestFailed(const QString &message);
     void meFetched();
     void meFailed(const QString &message);
     void serversFetched();
