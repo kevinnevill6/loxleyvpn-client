@@ -28,10 +28,9 @@ PageType {
     property bool emailError: false
     property int emailShakeOffset: 0
 
-    readonly property string pocAuthCode: "TEST123"
     readonly property bool authScreenVisible: !AppApiController.authenticated && !guestMode
     readonly property bool realApiMode: AppApiController.authenticated && !AppApiController.mockMode
-    readonly property int bottomNavHeight: 70
+    readonly property int bottomNavHeight: 66
     readonly property int bottomNavSafeMargin: Math.max(12, PageController.safeAreaBottomMargin + 2)
     readonly property color glassFill: Qt.rgba(1, 1, 1, 0.082)
     readonly property color glassFillStrong: Qt.rgba(1, 1, 1, 0.13)
@@ -128,7 +127,6 @@ PageType {
 
         function onLoginFailed(message) {
             root.statusText = message || "Не удалось войти"
-            root.showToast(root.statusText)
         }
 
         function onMeFetched() {
@@ -515,9 +513,25 @@ PageType {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 0
             radius: 0
-            color: "#101816"
+            gradient: Gradient {
+                GradientStop {
+                    position: 0
+                    color: "#101A15"
+                }
+                GradientStop {
+                    position: 1
+                    color: "#07100D"
+                }
+            }
             border.color: "transparent"
             border.width: 0
+
+            Rectangle {
+                width: parent.width
+                height: 1
+                anchors.top: parent.top
+                color: Qt.rgba(0.78, 0.98, 0.62, 0.13)
+            }
 
             Row {
                 width: Math.min(parent.width - 32, 520)
@@ -908,62 +922,97 @@ PageType {
                 id: profileRoot
 
                 width: parent.width
-                spacing: 18
+                spacing: 16
+
+                Text {
+                    id: profileTitle
+
+                    width: parent.width
+                    text: "Профиль"
+                    color: "#F7FBFF"
+                    font.family: "sans-serif-medium"
+                    font.pixelSize: 34
+                    font.weight: Font.DemiBold
+                    horizontalAlignment: Text.AlignHCenter
+                    maximumLineCount: 1
+                    fontSizeMode: Text.HorizontalFit
+                    minimumPixelSize: 30
+                }
 
                 Item {
                     id: profileHero
 
                     width: parent.width
-                    height: 238
+                    height: 304
 
                     Column {
                         id: profileColumn
-                    width: parent.width
-                    anchors.centerIn: parent
-                    spacing: 22
+                        width: parent.width
+                        anchors.centerIn: parent
+                        spacing: 16
 
                         Rectangle {
-                            width: 96
-                            height: 96
-                            radius: 48
+                            width: 108
+                            height: 108
+                            radius: 54
                             anchors.horizontalCenter: parent.horizontalCenter
-                            color: root.glassFillStrong
-                            border.color: root.glassLine
+                            color: Qt.rgba(0.72, 0.95, 0.42, 0.09)
+                            border.color: Qt.rgba(0.78, 0.98, 0.62, 0.28)
                             border.width: 1
 
                             Rectangle {
                                 anchors.fill: parent
-                                anchors.margins: 2
-                                radius: parent.radius - 2
+                                anchors.margins: 5
+                                radius: parent.radius - 5
                                 color: "transparent"
-                                border.color: Qt.rgba(1, 1, 1, 0.08)
+                                border.color: Qt.rgba(1, 1, 1, 0.07)
                                 border.width: 1
                             }
 
-                            ProfileGlyph {
-                                width: 46
-                            height: 46
-                            anchors.centerIn: parent
-                            color: "#DCEED2"
+                            ShieldAvatarGlyph {
+                                width: 66
+                                height: 72
+                                anchors.centerIn: parent
+                                color: root.loxleyAccent
+                                mutedColor: "#DCEED2"
+                            }
                         }
-                    }
 
-                        Text {
+                        Column {
                             width: parent.width
-                            text: AppApiController.authenticated ? "Профиль активен" : "Вход не выполнен"
-                            color: "#F7FBFF"
-                            font.family: "sans-serif-medium"
-                            font.pixelSize: 23
-                            font.weight: Font.DemiBold
-                        horizontalAlignment: Text.AlignHCenter
-                        wrapMode: Text.WordWrap
-                    }
+                            spacing: 8
+
+                            Text {
+                                width: parent.width
+                                text: AppApiController.authenticated ? "Профиль активен" : "Вы не авторизованы"
+                                color: "#F7FBFF"
+                                font.family: "sans-serif-medium"
+                                font.pixelSize: 29
+                                font.weight: Font.DemiBold
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                                maximumLineCount: 2
+                                fontSizeMode: Text.HorizontalFit
+                                minimumPixelSize: 25
+                            }
+
+                            Text {
+                                width: Math.min(parent.width - 24, 430)
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: AppApiController.authenticated ? root.subscriptionSummary() : "Войдите, чтобы управлять подпиской и подключением"
+                                color: "#AFC1B2"
+                                font.pixelSize: 16
+                                lineHeight: 1.18
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                            }
+                        }
 
                     LoxleyButton {
-                        width: Math.min(parent.width - 52, 390)
-                        height: 52
+                        width: Math.max(240, Math.min(parent.width * 0.76, 332))
+                        height: 60
                         anchors.horizontalCenter: parent.horizontalCenter
-                        labelPixelSize: 17
+                        labelPixelSize: 18
                         text: AppApiController.authenticated ? "Выйти" : "Войти"
                         secondary: AppApiController.authenticated
                         onClicked: {
@@ -1001,7 +1050,7 @@ PageType {
 
             Item {
                 width: parent.width
-                height: Math.max(36, appScroll.height - profileHero.height - profileSettingsRow.implicitHeight - profileHelpRow.implicitHeight - versionLabel.implicitHeight - profileRoot.spacing * 4 - 28)
+                height: Math.max(30, appScroll.height - profileTitle.implicitHeight - profileHero.height - profileSettingsRow.implicitHeight - profileHelpRow.implicitHeight - versionLabel.implicitHeight - profileRoot.spacing * 5 - 24)
             }
 
             Text {
@@ -1009,8 +1058,8 @@ PageType {
 
                 width: parent.width
                 text: "v0.1"
-                color: "#8AA18E"
-                font.pixelSize: 12
+                color: "#6F8174"
+                font.pixelSize: 11
                 horizontalAlignment: Text.AlignHCenter
             }
         }
@@ -1213,7 +1262,7 @@ PageType {
         }
 
         root.statusText = "Подключаем профиль"
-        AppApiController.login(root.pocAuthCode, AppApiController.deviceUuid, trimmedEmail, "android")
+        AppApiController.loginWithEmail(trimmedEmail, AppApiController.deviceUuid, "Android", "android")
     }
 
     function enterGuestMode() {
@@ -1227,6 +1276,12 @@ PageType {
         root.statusText = "Авторизуйтесь для доступа к VPN"
         root.showToast(root.statusText)
         root.guestMode = false
+    }
+
+    function requireActiveSubscription() {
+        root.statusText = "Подписка не активна"
+        root.showToast("Оформите доступ на сайте LoxleyVPN или в Telegram-боте")
+        root.currentTab = root.tabProfile
     }
 
     function resetEmailError() {
@@ -1357,12 +1412,41 @@ PageType {
 
     function subscriptionSummary() {
         if (!AppApiController.user) {
-            return "Подписка LoxleyVPN активна"
+            return "Подписка не активна"
         }
-        var subscription = AppApiController.user.subscription || {}
-        var plan = subscription.plan || "LoxleyVPN"
-        var status = subscription.status || "active"
-        return plan + " · " + status
+        var user = AppApiController.user || {}
+        var email = user.email || ""
+        var status = user.subscription_status || "inactive"
+        var canConnect = user.can_connect === true || user.can_connect === "true"
+        var prefix = email.length > 0 ? email + " · " : ""
+        if (!canConnect) {
+            return prefix + "подписка не активна"
+        }
+        if (user.expires_at && user.expires_at.length > 0) {
+            return prefix + "активна до " + root.shortDate(user.expires_at)
+        }
+        if (status === "active") {
+            return prefix + "подписка активна"
+        }
+        return prefix + status
+    }
+
+    function shortDate(value) {
+        var date = new Date(value)
+        if (isNaN(date.getTime())) {
+            return value
+        }
+        return Qt.formatDate(date, "dd.MM.yyyy")
+    }
+
+    function appUserCanConnect() {
+        if (!AppApiController.authenticated) {
+            return false
+        }
+        if (!AppApiController.user || AppApiController.user.can_connect === undefined) {
+            return true
+        }
+        return AppApiController.user.can_connect === true || AppApiController.user.can_connect === "true"
     }
 
     function connectionStateLabel() {
@@ -1391,6 +1475,11 @@ PageType {
             return
         }
 
+        if (!root.appUserCanConnect()) {
+            root.requireActiveSubscription()
+            return
+        }
+
         if (ConnectionController.isConnected || ConnectionController.isConnectionInProgress) {
             root.statusText = "Отключаем VPN"
             ConnectionController.closeConnection()
@@ -1403,6 +1492,11 @@ PageType {
     function connectSelectedServer() {
         if (!AppApiController.authenticated) {
             root.requireAuth()
+            return
+        }
+
+        if (!root.appUserCanConnect()) {
+            root.requireActiveSubscription()
             return
         }
 
@@ -1718,28 +1812,70 @@ PageType {
         }
     }
 
-    component ProfileGlyph: Canvas {
-        id: profileGlyphRoot
+    component ShieldAvatarGlyph: Canvas {
+        id: shieldAvatarRoot
 
         property color color: "#DCEED2"
+        property color mutedColor: "#DCEED2"
 
         onColorChanged: requestPaint()
+        onMutedColorChanged: requestPaint()
         onWidthChanged: requestPaint()
         onHeightChanged: requestPaint()
 
         onPaint: {
             var ctx = getContext("2d")
             ctx.clearRect(0, 0, width, height)
-            ctx.strokeStyle = profileGlyphRoot.color
-            ctx.lineWidth = 3.2
+
+            var size = Math.min(width, height)
+            var cx = width / 2
+            var top = height * 0.08
+            var shieldW = size * 0.78
+            var left = cx - shieldW / 2
+            var right = cx + shieldW / 2
+            var bottom = height * 0.86
+
+            ctx.lineWidth = Math.max(2.4, size * 0.046)
             ctx.lineCap = "round"
+            ctx.lineJoin = "round"
+
+            ctx.globalAlpha = 0.18
+            ctx.fillStyle = shieldAvatarRoot.color
+            ctx.beginPath()
+            ctx.moveTo(cx, top)
+            ctx.quadraticCurveTo(right, top + size * 0.10, right - size * 0.04, top + size * 0.40)
+            ctx.quadraticCurveTo(right - size * 0.07, bottom - size * 0.12, cx, bottom)
+            ctx.quadraticCurveTo(left + size * 0.07, bottom - size * 0.12, left + size * 0.04, top + size * 0.40)
+            ctx.quadraticCurveTo(left, top + size * 0.10, cx, top)
+            ctx.fill()
+
+            ctx.globalAlpha = 1
+            ctx.strokeStyle = shieldAvatarRoot.color
+            ctx.beginPath()
+            ctx.moveTo(cx, top)
+            ctx.quadraticCurveTo(right, top + size * 0.10, right - size * 0.04, top + size * 0.40)
+            ctx.quadraticCurveTo(right - size * 0.07, bottom - size * 0.12, cx, bottom)
+            ctx.quadraticCurveTo(left + size * 0.07, bottom - size * 0.12, left + size * 0.04, top + size * 0.40)
+            ctx.quadraticCurveTo(left, top + size * 0.10, cx, top)
+            ctx.stroke()
+
+            ctx.strokeStyle = shieldAvatarRoot.mutedColor
+            ctx.lineWidth = Math.max(2.2, size * 0.042)
 
             ctx.beginPath()
-            ctx.arc(width / 2, height * 0.33, width * 0.19, 0, Math.PI * 2)
+            ctx.arc(cx, height * 0.42, size * 0.13, 0, Math.PI * 2)
             ctx.stroke()
 
             ctx.beginPath()
-            ctx.arc(width / 2, height * 0.86, width * 0.35, Math.PI * 1.08, Math.PI * 1.92)
+            ctx.moveTo(cx - size * 0.24, height * 0.68)
+            ctx.quadraticCurveTo(cx, height * 0.53, cx + size * 0.24, height * 0.68)
+            ctx.stroke()
+
+            ctx.strokeStyle = shieldAvatarRoot.color
+            ctx.lineWidth = Math.max(2, size * 0.036)
+            ctx.beginPath()
+            ctx.moveTo(cx, height * 0.20)
+            ctx.lineTo(cx, height * 0.27)
             ctx.stroke()
         }
     }
@@ -1792,8 +1928,8 @@ PageType {
 
         height: 58
         radius: height / 2
-        color: secondary ? Qt.rgba(1, 1, 1, 0.035) : "#64D76D"
-        border.color: secondary ? Qt.rgba(0.70, 0.90, 0.55, 0.44) : "#7CEB83"
+        color: secondary ? Qt.rgba(1, 1, 1, 0.035) : "#78DC72"
+        border.color: secondary ? Qt.rgba(0.70, 0.90, 0.55, 0.44) : "#9BEA79"
         border.width: 1
         opacity: enabled ? 1 : 0.45
 
@@ -1928,28 +2064,42 @@ PageType {
         property int tabIndex: 0
         property string label: ""
         property string iconSource: ""
+        readonly property bool active: root.currentTab === navRoot.tabIndex || (root.currentTab === root.tabSettings && navRoot.tabIndex === root.tabProfile)
 
         radius: 0
         color: "transparent"
 
         Column {
             anchors.centerIn: parent
-            spacing: 3
+            spacing: 2
 
-            Image {
-                width: 25
-                height: 25
+            Item {
+                width: 23
+                height: 23
                 anchors.horizontalCenter: parent.horizontalCenter
-                source: navRoot.iconSource
-                fillMode: Image.PreserveAspectFit
-                opacity: root.currentTab === navRoot.tabIndex || (root.currentTab === root.tabSettings && navRoot.tabIndex === root.tabProfile) ? 1 : 0.68
+
+                Image {
+                    id: navIcon
+
+                    anchors.fill: parent
+                    source: navRoot.iconSource
+                    fillMode: Image.PreserveAspectFit
+                    visible: false
+                }
+
+                ColorOverlay {
+                    anchors.fill: parent
+                    source: navIcon
+                    color: navRoot.active ? root.loxleyAccent : "#7E8F82"
+                    opacity: navRoot.active ? 1 : 0.78
+                }
             }
 
             Text {
                 text: navRoot.label
-                color: root.currentTab === navRoot.tabIndex || (root.currentTab === root.tabSettings && navRoot.tabIndex === root.tabProfile) ? "#F7FBFF" : "#A8B6A5"
-                font.pixelSize: 15
-                font.weight: root.currentTab === navRoot.tabIndex || (root.currentTab === root.tabSettings && navRoot.tabIndex === root.tabProfile) ? Font.DemiBold : Font.Normal
+                color: navRoot.active ? "#F3FFF7" : "#91A095"
+                font.pixelSize: 14
+                font.weight: navRoot.active ? Font.DemiBold : Font.Normal
             }
         }
 
@@ -1990,18 +2140,18 @@ PageType {
         property string subtitle: ""
         signal clicked()
 
-        radius: 24
-        color: root.glassFill
-        border.color: Qt.rgba(1, 1, 1, 0.07)
+        radius: 22
+        color: Qt.rgba(1, 1, 1, 0.074)
+        border.color: Qt.rgba(1, 1, 1, 0.075)
         border.width: 1
-        implicitHeight: Math.max(76, menuContent.implicitHeight + 26)
+        implicitHeight: 78
 
         Rectangle {
             anchors.fill: parent
             anchors.margins: 1
             radius: parent.radius - 1
             color: "transparent"
-            border.color: Qt.rgba(1, 1, 1, 0.07)
+            border.color: Qt.rgba(0.78, 0.98, 0.62, 0.08)
             border.width: 1
         }
 
@@ -2012,24 +2162,33 @@ PageType {
             spacing: 16
 
             Rectangle {
-                width: 44
-                height: 44
-                radius: 18
-                color: Qt.rgba(1, 1, 1, 0.08)
-                border.color: root.glassLine
+                width: 46
+                height: 46
+                radius: 17
+                color: Qt.rgba(0.72, 0.95, 0.42, 0.10)
+                border.color: Qt.rgba(0.78, 0.98, 0.62, 0.20)
                 border.width: 1
 
                 Image {
+                    id: menuIcon
+
                     width: 21
                     height: 21
                     anchors.centerIn: parent
                     source: menuRoot.iconSource
-                    opacity: 0.86
+                    visible: false
+                }
+
+                ColorOverlay {
+                    anchors.fill: menuIcon
+                    source: menuIcon
+                    color: "#D4EBC8"
+                    opacity: 0.9
                 }
             }
 
             Column {
-                width: parent.width - 96
+                width: parent.width - 98
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 3
 
@@ -2038,7 +2197,7 @@ PageType {
                     text: menuRoot.title
                     color: "#F7FBFF"
                     font.family: "sans-serif-medium"
-                    font.pixelSize: 18
+                    font.pixelSize: 20
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
@@ -2053,12 +2212,25 @@ PageType {
                 }
             }
 
-            Image {
+            Item {
                 width: 18
                 height: 18
                 anchors.verticalCenter: parent.verticalCenter
-                source: "qrc:/images/controls/chevron-right.svg"
-                opacity: 0.68
+
+                Image {
+                    id: menuChevron
+
+                    anchors.fill: parent
+                    source: "qrc:/images/controls/chevron-right.svg"
+                    visible: false
+                }
+
+                ColorOverlay {
+                    anchors.fill: parent
+                    source: menuChevron
+                    color: "#849287"
+                    opacity: 0.58
+                }
             }
         }
 

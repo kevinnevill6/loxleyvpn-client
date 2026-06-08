@@ -36,6 +36,7 @@ public:
 
 public slots:
     void login(const QString &code, const QString &deviceUuid, const QString &deviceName, const QString &platform);
+    void loginWithEmail(const QString &email, const QString &deviceUuid, const QString &deviceName, const QString &platform);
     void fetchMe();
     void fetchServers();
     void fetchConfig(const QString &serverId);

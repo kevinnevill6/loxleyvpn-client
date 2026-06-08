@@ -143,6 +143,55 @@ void AppApiUiController::login(const QString &code, const QString &deviceUuid, c
     });
 }
 
+void AppApiUiController::loginWithEmail(const QString &email, const QString &deviceUuid, const QString &deviceName, const QString &platform)
+{
+    const QString trimmedEmail = email.trimmed().toLower();
+    if (trimmedEmail.isEmpty()) {
+        emit loginFailed(tr("Введите email"));
+        return;
+    }
+
+    QJsonObject body;
+    body["email"] = trimmedEmail;
+    body["device_uuid"] = deviceUuid.trimmed().isEmpty() ? m_deviceUuid : deviceUuid.trimmed();
+    body["device_name"] = deviceName.trimmed().isEmpty() ? QSysInfo::prettyProductName() : deviceName.trimmed();
+    body["platform"] = platform.trimmed().isEmpty() ? QStringLiteral("android") : platform.trimmed();
+
+    sendJsonPost(QStringLiteral("/api/app/auth/email"), body, false,
+                 [this](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
+        if (error != QNetworkReply::NoError || statusCode != 200) {
+            const QJsonObject payload = objectFromBody(body);
+            const QString message = payload.value("message").toString(errorMessage(statusCode, error, errorString));
+            const QJsonObject user = payload.value("user").toObject();
+            if (!user.isEmpty()) {
+                setUserFromObject(user);
+            }
+            emit loginFailed(message);
+            return;
+        }
+
+        const QJsonObject payload = objectFromBody(body);
+        const QString token = payload.value("token").toString();
+        const QJsonObject user = payload.value("user").toObject();
+
+        if (token.isEmpty() || user.isEmpty()) {
+            emit loginFailed(tr("Backend вернул неполный ответ"));
+            return;
+        }
+
+        const bool wasAuthenticated = authenticated();
+        m_token = token;
+        setUserFromObject(user);
+        setMockMode(false);
+
+        if (!wasAuthenticated) {
+            emit authenticatedChanged();
+        }
+
+        emit loginSucceeded();
+    });
+}
+
 void AppApiUiController::fetchMe()
 {
     if (!ensureAuthenticated()) {
@@ -153,7 +202,8 @@ void AppApiUiController::fetchMe()
     sendGet(QStringLiteral("/api/app/me"), true,
             [this](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
         if (error != QNetworkReply::NoError || statusCode != 200) {
-            emit meFailed(errorMessage(statusCode, error, errorString));
+            const QString message = objectFromBody(body).value("message").toString(errorMessage(statusCode, error, errorString));
+            emit meFailed(message);
             return;
         }
 
@@ -178,7 +228,13 @@ void AppApiUiController::fetchServers()
     sendGet(QStringLiteral("/api/app/servers"), true,
             [this](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
         if (error != QNetworkReply::NoError || statusCode != 200) {
-            emit serversFailed(errorMessage(statusCode, error, errorString));
+            const QJsonObject payload = objectFromBody(body);
+            const QString message = payload.value("message").toString(errorMessage(statusCode, error, errorString));
+            const QJsonObject user = payload.value("user").toObject();
+            if (!user.isEmpty()) {
+                setUserFromObject(user);
+            }
+            emit serversFailed(message);
             return;
         }
 
