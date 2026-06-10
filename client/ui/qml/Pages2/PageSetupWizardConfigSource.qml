@@ -117,8 +117,11 @@ PageType {
             if (!root.authScreenVisible) {
                 appScroll.contentY = 0
             }
+            root.refreshServersIfNeeded()
         })
     }
+
+    Component.onCompleted: Qt.callLater(root.refreshServersIfNeeded)
 
     Connections {
         target: AppApiController
@@ -141,6 +144,10 @@ PageType {
             } else {
                 root.statusText = message || "Не удалось войти"
             }
+        }
+
+        function onAuthenticatedChanged() {
+            root.refreshServersIfNeeded()
         }
 
         function onEmailCodeRequested(email, message) {
@@ -1524,6 +1531,18 @@ PageType {
             return root.fallbackServers
         }
         return []
+    }
+
+    function refreshServersIfNeeded() {
+        if (root.currentTab !== root.tabLocations) {
+            return
+        }
+        if (!AppApiController.authenticated || AppApiController.mockMode || AppApiController.busy) {
+            return
+        }
+        if (!AppApiController.servers || AppApiController.servers.length === 0) {
+            AppApiController.fetchServers()
+        }
     }
 
     function filteredServers() {
