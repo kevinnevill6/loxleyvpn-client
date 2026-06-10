@@ -14,7 +14,7 @@
 #include "amneziaApplication.h"
 
 #ifndef LOXLEY_APP_API_BASE_URL
-#define LOXLEY_APP_API_BASE_URL "http://127.0.0.1:8000"
+#define LOXLEY_APP_API_BASE_URL "https://staging.loxleyvpn.ru"
 #endif
 
 namespace
