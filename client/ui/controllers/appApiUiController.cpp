@@ -7,11 +7,13 @@
 #include <QJsonObject>
 #include <QNetworkRequest>
 #include <QRegularExpression>
+#include <QSettings>
 #include <QSysInfo>
 #include <QUrl>
 #include <QUuid>
 
 #include "amneziaApplication.h"
+#include "version.h"
 
 #ifndef LOXLEY_APP_API_BASE_URL
 #define LOXLEY_APP_API_BASE_URL "https://staging.loxleyvpn.ru"
@@ -42,12 +44,26 @@ namespace
         static const QRegularExpression pattern(QStringLiteral(R"(^[^\s@]+@[^\s@]+\.[^\s@]+$)"));
         return email.size() >= 6 && email.size() <= 320 && pattern.match(email).hasMatch();
     }
+
+    QString stableDeviceUuid()
+    {
+        QSettings settings;
+        const QString key = QStringLiteral("loxley/appApiDeviceUuid");
+        QString uuid = settings.value(key).toString().trimmed();
+        if (uuid.isEmpty()) {
+            uuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
+            settings.setValue(key, uuid);
+            settings.sync();
+        }
+
+        return uuid;
+    }
 }
 
 AppApiUiController::AppApiUiController(QObject *parent)
     : QObject(parent),
       m_baseUrl(normalizedBaseUrl(QStringLiteral(LOXLEY_APP_API_BASE_URL))),
-      m_deviceUuid(QUuid::createUuid().toString(QUuid::WithoutBraces))
+      m_deviceUuid(stableDeviceUuid())
 {
 }
 
@@ -120,6 +136,7 @@ void AppApiUiController::login(const QString &code, const QString &deviceUuid, c
     body["device_uuid"] = deviceUuid.trimmed().isEmpty() ? m_deviceUuid : deviceUuid.trimmed();
     body["device_name"] = deviceName.trimmed().isEmpty() ? QSysInfo::prettyProductName() : deviceName.trimmed();
     body["platform"] = platform.trimmed().isEmpty() ? QStringLiteral("android") : platform.trimmed();
+    body["app_version"] = QStringLiteral(APP_VERSION);
 
     sendJsonPost(QStringLiteral("/api/app/auth/code"), body, false,
                  [this](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
@@ -168,6 +185,7 @@ void AppApiUiController::requestEmailCode(const QString &email, const QString &d
     body["device_uuid"] = deviceUuid.trimmed().isEmpty() ? m_deviceUuid : deviceUuid.trimmed();
     body["device_name"] = deviceName.trimmed().isEmpty() ? QSysInfo::prettyProductName() : deviceName.trimmed();
     body["platform"] = platform.trimmed().isEmpty() ? QStringLiteral("android") : platform.trimmed();
+    body["app_version"] = QStringLiteral(APP_VERSION);
 
     sendJsonPost(QStringLiteral("/api/app/auth/email/request-code"), body, false,
                  [this](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
@@ -202,6 +220,7 @@ void AppApiUiController::verifyEmailCode(const QString &email, const QString &co
     body["device_uuid"] = deviceUuid.trimmed().isEmpty() ? m_deviceUuid : deviceUuid.trimmed();
     body["device_name"] = deviceName.trimmed().isEmpty() ? QSysInfo::prettyProductName() : deviceName.trimmed();
     body["platform"] = platform.trimmed().isEmpty() ? QStringLiteral("android") : platform.trimmed();
+    body["app_version"] = QStringLiteral(APP_VERSION);
 
     sendJsonPost(QStringLiteral("/api/app/auth/email/verify-code"), body, false,
                  [this](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {

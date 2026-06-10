@@ -1435,7 +1435,7 @@ PageType {
 
         root.pendingEmail = trimmedEmail
         root.statusText = "Отправляем код"
-        AppApiController.requestEmailCode(trimmedEmail, AppApiController.deviceUuid, "Android", "android")
+        AppApiController.requestEmailCode(trimmedEmail, AppApiController.deviceUuid, "", "android")
     }
 
     function verifyEmailCode(codeValue) {
@@ -1452,7 +1452,7 @@ PageType {
 
         root.codeError = false
         root.statusText = "Проверяем код"
-        AppApiController.verifyEmailCode(root.pendingEmail || root.emailText.trim(), trimmedCode, AppApiController.deviceUuid, "Android", "android")
+        AppApiController.verifyEmailCode(root.pendingEmail || root.emailText.trim(), trimmedCode, AppApiController.deviceUuid, "", "android")
     }
 
     function showCodeError(message, clearAfterShake) {
@@ -1667,14 +1667,18 @@ PageType {
         var status = user.subscription_status || "inactive"
         var canConnect = user.can_connect === true || user.can_connect === "true"
         var prefix = email.length > 0 ? email + " · " : ""
+        var deviceText = ""
+        if (user.devices_used !== undefined && user.device_limit !== undefined) {
+            deviceText = " · устройства " + user.devices_used + "/" + user.device_limit
+        }
         if (!canConnect) {
             return prefix + "подписка не активна"
         }
         if (user.expires_at && user.expires_at.length > 0) {
-            return prefix + "активна до " + root.shortDate(user.expires_at)
+            return prefix + "активна до " + root.shortDate(user.expires_at) + deviceText
         }
         if (status === "active") {
-            return prefix + "подписка активна"
+            return prefix + "подписка активна" + deviceText
         }
         return prefix + status
     }
