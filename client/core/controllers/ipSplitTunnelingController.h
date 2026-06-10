@@ -30,9 +30,11 @@ public:
     void removeSites();
     void setRouteMode(RouteMode routeMode);
     void toggleSplitTunneling(bool enabled);
+    int configureRussianServicesBypass(bool enabled);
 
     RouteMode getRouteMode() const;
     bool isSplitTunnelingEnabled() const;
+    bool isRussianServicesBypassEnabled() const;
     QVector<QPair<QString, QString>> getCurrentSites() const;
 
     bool importSitesFromJson(const QByteArray& jsonData, bool replaceExisting, QString &errorMessage);
@@ -55,4 +57,3 @@ private:
 };
 
 #endif // IPSPLITTUNNELINGCONTROLLER_H
-

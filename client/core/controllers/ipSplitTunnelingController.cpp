@@ -2,6 +2,41 @@
 #include "core/utils/networkUtilities.h"
 #include <QJsonObject>
 
+namespace {
+const QStringList kRussianBypassHosts = {
+    QStringLiteral("wildberries.ru"),
+    QStringLiteral("www.wildberries.ru"),
+    QStringLiteral("wb.ru"),
+    QStringLiteral("www.wb.ru"),
+    QStringLiteral("static.wbstatic.net"),
+    QStringLiteral("basket-01.wbbasket.ru"),
+    QStringLiteral("basket-02.wbbasket.ru"),
+    QStringLiteral("basket-03.wbbasket.ru"),
+    QStringLiteral("basket-04.wbbasket.ru"),
+    QStringLiteral("basket-05.wbbasket.ru"),
+    QStringLiteral("basket-06.wbbasket.ru"),
+    QStringLiteral("basket-07.wbbasket.ru"),
+    QStringLiteral("basket-08.wbbasket.ru"),
+    QStringLiteral("basket-09.wbbasket.ru"),
+    QStringLiteral("basket-10.wbbasket.ru"),
+    QStringLiteral("basket-11.wbbasket.ru"),
+    QStringLiteral("basket-12.wbbasket.ru"),
+    QStringLiteral("basket-13.wbbasket.ru"),
+    QStringLiteral("basket-14.wbbasket.ru"),
+    QStringLiteral("basket-15.wbbasket.ru"),
+    QStringLiteral("gosuslugi.ru"),
+    QStringLiteral("www.gosuslugi.ru"),
+    QStringLiteral("esia.gosuslugi.ru"),
+    QStringLiteral("sberbank.ru"),
+    QStringLiteral("www.sberbank.ru"),
+    QStringLiteral("online.sberbank.ru"),
+    QStringLiteral("tbank.ru"),
+    QStringLiteral("www.tbank.ru"),
+    QStringLiteral("ozon.ru"),
+    QStringLiteral("www.ozon.ru")
+};
+}
+
 IpSplitTunnelingController::IpSplitTunnelingController(SecureAppSettingsRepository* appSettingsRepository, QObject* parent)
     : QObject(parent),
       m_appSettingsRepository(appSettingsRepository)
@@ -114,6 +149,42 @@ void IpSplitTunnelingController::toggleSplitTunneling(bool enabled)
     m_appSettingsRepository->setSitesSplitTunnelingEnabled(enabled);
 }
 
+int IpSplitTunnelingController::configureRussianServicesBypass(bool enabled)
+{
+    m_appSettingsRepository->setRussianServicesBypassEnabled(enabled);
+    setRouteMode(RouteMode::VpnAllExceptSites);
+    toggleSplitTunneling(enabled);
+
+    if (!enabled) {
+        return 0;
+    }
+
+    QMap<QString, QString> excludedSubnets;
+    for (const QString &host : kRussianBypassHosts) {
+        const QHostInfo hostInfo = QHostInfo::fromName(host);
+        if (hostInfo.error() != QHostInfo::NoError) {
+            continue;
+        }
+
+        for (const QHostAddress &address : hostInfo.addresses()) {
+            if (address.protocol() != QAbstractSocket::NetworkLayerProtocol::IPv4Protocol) {
+                continue;
+            }
+
+            const QString subnet = address.toString() + QStringLiteral("/32");
+            if (NetworkUtilities::checkIpSubnetFormat(subnet)) {
+                excludedSubnets.insert(subnet, QString());
+            }
+        }
+    }
+
+    if (!excludedSubnets.isEmpty()) {
+        addSites(excludedSubnets, true);
+    }
+
+    return excludedSubnets.size();
+}
+
 RouteMode IpSplitTunnelingController::getRouteMode() const
 {
     return m_currentRouteMode;
@@ -122,6 +193,11 @@ RouteMode IpSplitTunnelingController::getRouteMode() const
 bool IpSplitTunnelingController::isSplitTunnelingEnabled() const
 {
     return m_appSettingsRepository->isSitesSplitTunnelingEnabled();
+}
+
+bool IpSplitTunnelingController::isRussianServicesBypassEnabled() const
+{
+    return m_appSettingsRepository->isRussianServicesBypassEnabled();
 }
 
 QVector<QPair<QString, QString>> IpSplitTunnelingController::getCurrentSites() const
@@ -242,4 +318,3 @@ QByteArray IpSplitTunnelingController::exportSitesToJson() const
     QJsonDocument jsonDocument(jsonArray);
     return jsonDocument.toJson();
 }
-

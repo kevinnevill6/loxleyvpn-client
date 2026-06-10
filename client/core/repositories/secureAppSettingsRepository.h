@@ -45,6 +45,8 @@ public:
     QVariantMap vpnSites(RouteMode mode) const;
     bool isSitesSplitTunnelingEnabled() const;
     void setSitesSplitTunnelingEnabled(bool enabled);
+    bool isRussianServicesBypassEnabled() const;
+    void setRussianServicesBypassEnabled(bool enabled);
 
     AppsRouteMode appsRouteMode() const;
     void setAppsRouteMode(AppsRouteMode mode);
@@ -101,6 +103,7 @@ signals:
     void routeModeChanged(RouteMode mode);
     void appsRouteModeChanged(AppsRouteMode mode);
     void sitesSplitTunnelingEnabledChanged(bool enabled);
+    void russianServicesBypassEnabledChanged(bool enabled);
     void appsSplitTunnelingEnabledChanged(bool enabled);
     void useAmneziaDnsChanged(bool enabled);
     void saveLogsChanged(bool enabled);
@@ -119,4 +122,3 @@ private:
 };
 
 #endif // SECUREAPPSETTINGSREPOSITORY_H
-

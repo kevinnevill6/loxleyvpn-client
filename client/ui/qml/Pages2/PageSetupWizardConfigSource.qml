@@ -18,7 +18,7 @@ PageType {
     property int protocolIndex: 0
 
     property bool guestMode: false
-    property bool russianBypass: true
+    property bool russianBypass: IpSplitTunnelingController.russianServicesBypassEnabled
     property bool sortAscending: true
     property string authStep: "email"
     property string emailText: ""
@@ -1360,7 +1360,7 @@ PageType {
 
                     MiniToggle {
                         checked: root.russianBypass
-                        onClicked: root.russianBypass = !root.russianBypass
+                        onClicked: root.setRussianBypass(!root.russianBypass)
                     }
                 }
             }
@@ -1761,7 +1761,20 @@ PageType {
         }
 
         root.statusText = "Получаем конфигурацию"
+        root.configureRussianBypass()
         AppApiController.fetchConfig(server.id)
+    }
+
+    function setRussianBypass(enabled) {
+        root.russianBypass = enabled
+        root.configureRussianBypass()
+        if (ConnectionController.isConnected) {
+            root.showToast("Изменение применится после переподключения")
+        }
+    }
+
+    function configureRussianBypass() {
+        IpSplitTunnelingController.configureRussianServicesBypass(root.russianBypass)
     }
 
     function importAndConnectConfig(configText, serverTitle) {

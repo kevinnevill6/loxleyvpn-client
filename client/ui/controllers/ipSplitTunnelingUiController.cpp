@@ -76,6 +76,16 @@ void IpSplitTunnelingUiController::setRouteMode(int routeMode)
     emit routeModeChanged();
 }
 
+int IpSplitTunnelingUiController::configureRussianServicesBypass(bool enabled)
+{
+    const int excludedRoutesCount = m_ipSplitTunnelingController->configureRussianServicesBypass(enabled);
+    emit routeModeChanged();
+    emit isSplitTunnelingEnabledChanged();
+    emit russianServicesBypassEnabledChanged();
+    updateModel();
+    return excludedRoutesCount;
+}
+
 int IpSplitTunnelingUiController::getRouteMode() const
 {
     return static_cast<int>(m_ipSplitTunnelingController->getRouteMode());
@@ -84,6 +94,11 @@ int IpSplitTunnelingUiController::getRouteMode() const
 bool IpSplitTunnelingUiController::isSplitTunnelingEnabled() const
 {
     return m_ipSplitTunnelingController->isSplitTunnelingEnabled();
+}
+
+bool IpSplitTunnelingUiController::isRussianServicesBypassEnabled() const
+{
+    return m_ipSplitTunnelingController->isRussianServicesBypassEnabled();
 }
 
 void IpSplitTunnelingUiController::updateModel()

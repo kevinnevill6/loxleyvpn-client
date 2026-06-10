@@ -182,6 +182,17 @@ void SecureAppSettingsRepository::setSitesSplitTunnelingEnabled(bool enabled)
     emit sitesSplitTunnelingEnabledChanged(enabled);
 }
 
+bool SecureAppSettingsRepository::isRussianServicesBypassEnabled() const
+{
+    return value("Conf/loxleyRussianServicesBypassEnabled", true).toBool();
+}
+
+void SecureAppSettingsRepository::setRussianServicesBypassEnabled(bool enabled)
+{
+    setValue("Conf/loxleyRussianServicesBypassEnabled", enabled);
+    emit russianServicesBypassEnabledChanged(enabled);
+}
+
 namespace {
     QString appsRouteModeString(AppsRouteMode mode) {
         switch (mode) {
