@@ -35,6 +35,32 @@ const QStringList kRussianBypassHosts = {
     QStringLiteral("ozon.ru"),
     QStringLiteral("www.ozon.ru")
 };
+
+const QStringList kRussianBypassSubnets = {
+    QStringLiteral("176.101.88.0/24"),
+    QStringLiteral("176.101.90.0/24"),
+    QStringLiteral("185.138.252.0/22"),
+    QStringLiteral("185.62.200.0/23"),
+    QStringLiteral("185.62.202.0/24"),
+    QStringLiteral("194.1.214.0/24"),
+    QStringLiteral("213.184.155.0/24"),
+    QStringLiteral("213.184.156.0/22"),
+    QStringLiteral("85.198.76.0/22"),
+    QStringLiteral("90.156.247.0/24"),
+    QStringLiteral("91.230.107.0/24")
+};
+
+void addResolvedAddress(QMap<QString, QString> &excludedSubnets, const QHostAddress &address)
+{
+    if (address.protocol() != QAbstractSocket::NetworkLayerProtocol::IPv4Protocol) {
+        return;
+    }
+
+    const QString subnet = address.toString() + QStringLiteral("/32");
+    if (NetworkUtilities::checkIpSubnetFormat(subnet)) {
+        excludedSubnets.insert(subnet, QString());
+    }
+}
 }
 
 IpSplitTunnelingController::IpSplitTunnelingController(SecureAppSettingsRepository* appSettingsRepository, QObject* parent)
@@ -160,6 +186,12 @@ int IpSplitTunnelingController::configureRussianServicesBypass(bool enabled)
     }
 
     QMap<QString, QString> excludedSubnets;
+    for (const QString &subnet : kRussianBypassSubnets) {
+        if (NetworkUtilities::checkIpSubnetFormat(subnet)) {
+            excludedSubnets.insert(subnet, QString());
+        }
+    }
+
     for (const QString &host : kRussianBypassHosts) {
         const QHostInfo hostInfo = QHostInfo::fromName(host);
         if (hostInfo.error() != QHostInfo::NoError) {
@@ -167,14 +199,7 @@ int IpSplitTunnelingController::configureRussianServicesBypass(bool enabled)
         }
 
         for (const QHostAddress &address : hostInfo.addresses()) {
-            if (address.protocol() != QAbstractSocket::NetworkLayerProtocol::IPv4Protocol) {
-                continue;
-            }
-
-            const QString subnet = address.toString() + QStringLiteral("/32");
-            if (NetworkUtilities::checkIpSubnetFormat(subnet)) {
-                excludedSubnets.insert(subnet, QString());
-            }
+            addResolvedAddress(excludedSubnets, address);
         }
     }
 

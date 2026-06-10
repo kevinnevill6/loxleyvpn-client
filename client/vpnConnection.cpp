@@ -418,8 +418,10 @@ void VpnConnection::appendSplitTunnelingConfig()
             }
         }
 
-        QJsonArray allowedIpsJsonArray = configData.value(configKey::allowedIps).toArray();
-        if (allowedIpsJsonArray.contains("0.0.0.0/0") && allowedIpsJsonArray.contains("::/0")) {
+        const QJsonArray allowedIpsJsonArray = configData.value(configKey::allowedIps).toArray();
+        const bool hasIpv4DefaultRoute = allowedIpsJsonArray.contains("0.0.0.0/0");
+        const bool hasIpv6DefaultRoute = allowedIpsJsonArray.contains("::/0") || allowedIpsJsonArray.contains("2000::/3");
+        if (hasIpv4DefaultRoute || hasIpv6DefaultRoute) {
             allowSiteBasedSplitTunneling = true;
         }
     }
