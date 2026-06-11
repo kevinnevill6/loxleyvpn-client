@@ -44,6 +44,7 @@ public slots:
     void fetchConfig(const QString &serverId);
     void clearSession();
     void useMockMode();
+    void setOneTimeCodeAutofillActive(bool active);
 
 signals:
     void baseUrlChanged();
@@ -63,6 +64,7 @@ signals:
     void serversFailed(const QString &message);
     void configFetched(const QString &serverId, const QString &protocol, const QString &config, bool fakeConfig);
     void configFailed(const QString &serverId, const QString &message, int statusCode);
+    void oneTimeCodeReceived(const QString &code);
 
 private:
     using ResponseHandler = std::function<void(int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString)>;

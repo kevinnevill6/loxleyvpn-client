@@ -10,15 +10,204 @@
 
 using SceneOpenURLContexts = void (*)(id, SEL, UIScene *, NSSet<UIOpenURLContext *> *);
 using SceneWillConnectToSession = void (*)(id, SEL, UIScene *, UISceneSession *, UISceneConnectionOptions *);
-using SceneDidBecomeActive = void (*)(id, SEL, UIScene *);
 
 static SceneOpenURLContexts g_originalSceneOpenURLContexts = nullptr;
 static SceneWillConnectToSession g_originalSceneWillConnectToSession = nullptr;
-static SceneDidBecomeActive g_originalSceneDidBecomeActive = nullptr;
+static UIResponder *g_loxleyFirstResponder = nil;
+static bool g_loxleyOneTimeCodeAutofillActive = false;
+using LoxleyOneTimeCodeHandler = void (*)(const char *code);
+static LoxleyOneTimeCodeHandler g_loxleyOneTimeCodeHandler = nullptr;
+
+@interface LoxleyOneTimeCodeInputTarget : NSObject <UITextFieldDelegate>
+- (void)textDidChange:(UITextField *)field;
+@end
+
+static UITextField *g_loxleyOneTimeCodeField = nil;
+static LoxleyOneTimeCodeInputTarget *g_loxleyOneTimeCodeTarget = nil;
+
+static NSString *loxley_digitsOnly(NSString *value)
+{
+    NSMutableString *digits = [NSMutableString string];
+    NSCharacterSet *decimalDigits = [NSCharacterSet decimalDigitCharacterSet];
+    for (NSUInteger i = 0; i < value.length && digits.length < 6; ++i) {
+        unichar character = [value characterAtIndex:i];
+        if ([decimalDigits characterIsMember:character]) {
+            [digits appendFormat:@"%C", character];
+        }
+    }
+    return digits;
+}
+
+@implementation LoxleyOneTimeCodeInputTarget
+
+- (void)textDidChange:(UITextField *)field
+{
+    NSString *digits = loxley_digitsOnly(field.text ?: @"");
+    if (![field.text isEqualToString:digits]) {
+        field.text = digits;
+    }
+
+    if (digits.length > 0 && g_loxleyOneTimeCodeHandler) {
+        g_loxleyOneTimeCodeHandler(digits.UTF8String);
+    }
+}
+
+- (BOOL)textField:(UITextField *)textField shouldChangeCharactersInRange:(NSRange)range replacementString:(NSString *)string
+{
+    NSString *current = textField.text ?: @"";
+    NSString *candidate = [current stringByReplacingCharactersInRange:range withString:string ?: @""];
+    NSString *digits = loxley_digitsOnly(candidate);
+    textField.text = digits;
+
+    if (digits.length > 0 && g_loxleyOneTimeCodeHandler) {
+        g_loxleyOneTimeCodeHandler(digits.UTF8String);
+    }
+
+    return NO;
+}
+
+@end
+
+@interface UIResponder (LoxleyFirstResponder)
+- (void)loxley_reportFirstResponder:(id)sender;
+@end
+
+@implementation UIResponder (LoxleyFirstResponder)
+- (void)loxley_reportFirstResponder:(id)sender
+{
+    g_loxleyFirstResponder = self;
+}
+@end
 
 static UIColor *loxley_backgroundColor()
 {
     return [UIColor colorWithRed:0.01960784314 green:0.03137254902 blue:0.02745098039 alpha:1.0];
+}
+
+static UIResponder *loxley_currentFirstResponder()
+{
+    g_loxleyFirstResponder = nil;
+    [[UIApplication sharedApplication] sendAction:@selector(loxley_reportFirstResponder:) to:nil from:nil forEvent:nil];
+    return g_loxleyFirstResponder;
+}
+
+static void loxley_applyOneTimeCodeAutofill()
+{
+    if (@available(iOS 12.0, *)) {
+        UIResponder *responder = loxley_currentFirstResponder();
+        if (!responder) {
+            return;
+        }
+
+        id traits = responder;
+        if ([traits respondsToSelector:@selector(setTextContentType:)]) {
+            [traits setTextContentType:g_loxleyOneTimeCodeAutofillActive ? UITextContentTypeOneTimeCode : nil];
+        }
+        if (g_loxleyOneTimeCodeAutofillActive) {
+            if ([traits respondsToSelector:@selector(setKeyboardType:)]) {
+                [traits setKeyboardType:UIKeyboardTypeNumberPad];
+            }
+            if ([traits respondsToSelector:@selector(setAutocorrectionType:)]) {
+                [traits setAutocorrectionType:UITextAutocorrectionTypeNo];
+            }
+            if ([traits respondsToSelector:@selector(setSpellCheckingType:)]) {
+                [traits setSpellCheckingType:UITextSpellCheckingTypeNo];
+            }
+        }
+        if ([responder respondsToSelector:@selector(reloadInputViews)]) {
+            [responder reloadInputViews];
+        }
+    }
+}
+
+static UIWindow *loxley_keyWindow()
+{
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+            if (scene.activationState != UISceneActivationStateForegroundActive || ![scene isKindOfClass:[UIWindowScene class]]) {
+                continue;
+            }
+
+            UIWindowScene *windowScene = (UIWindowScene *)scene;
+            for (UIWindow *window in windowScene.windows) {
+                if (window.isKeyWindow) {
+                    return window;
+                }
+            }
+        }
+    }
+
+    return [UIApplication sharedApplication].keyWindow;
+}
+
+static UITextField *loxley_ensureOneTimeCodeField()
+{
+    if (!g_loxleyOneTimeCodeTarget) {
+        g_loxleyOneTimeCodeTarget = [[LoxleyOneTimeCodeInputTarget alloc] init];
+    }
+
+    if (!g_loxleyOneTimeCodeField) {
+        g_loxleyOneTimeCodeField = [[UITextField alloc] initWithFrame:CGRectMake(0, -120, 1, 1)];
+        g_loxleyOneTimeCodeField.textContentType = UITextContentTypeOneTimeCode;
+        g_loxleyOneTimeCodeField.keyboardType = UIKeyboardTypeNumberPad;
+        g_loxleyOneTimeCodeField.autocorrectionType = UITextAutocorrectionTypeNo;
+        g_loxleyOneTimeCodeField.spellCheckingType = UITextSpellCheckingTypeNo;
+        g_loxleyOneTimeCodeField.textColor = UIColor.clearColor;
+        g_loxleyOneTimeCodeField.tintColor = UIColor.clearColor;
+        g_loxleyOneTimeCodeField.backgroundColor = UIColor.clearColor;
+        g_loxleyOneTimeCodeField.borderStyle = UITextBorderStyleNone;
+        g_loxleyOneTimeCodeField.alpha = 0.01;
+        g_loxleyOneTimeCodeField.delegate = g_loxleyOneTimeCodeTarget;
+        [g_loxleyOneTimeCodeField addTarget:g_loxleyOneTimeCodeTarget action:@selector(textDidChange:) forControlEvents:UIControlEventEditingChanged];
+    }
+
+    UIWindow *window = loxley_keyWindow();
+    UIView *container = window.rootViewController.view ?: window;
+    if (container && g_loxleyOneTimeCodeField.superview != container) {
+        [g_loxleyOneTimeCodeField removeFromSuperview];
+        [container addSubview:g_loxleyOneTimeCodeField];
+    }
+
+    return g_loxleyOneTimeCodeField;
+}
+
+extern "C" void loxley_setOneTimeCodeAutofillActive(bool active)
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        g_loxleyOneTimeCodeAutofillActive = active;
+
+        if (!active) {
+            if (g_loxleyOneTimeCodeField) {
+                g_loxleyOneTimeCodeField.text = @"";
+                [g_loxleyOneTimeCodeField resignFirstResponder];
+            }
+            loxley_applyOneTimeCodeAutofill();
+            return;
+        }
+
+        UITextField *field = loxley_ensureOneTimeCodeField();
+        field.text = @"";
+        field.textContentType = UITextContentTypeOneTimeCode;
+        field.keyboardType = UIKeyboardTypeNumberPad;
+        [field becomeFirstResponder];
+        loxley_applyOneTimeCodeAutofill();
+
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.12 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [g_loxleyOneTimeCodeField becomeFirstResponder];
+            loxley_applyOneTimeCodeAutofill();
+        });
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.35 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [g_loxleyOneTimeCodeField becomeFirstResponder];
+            loxley_applyOneTimeCodeAutofill();
+        });
+    });
+}
+
+extern "C" void loxley_setOneTimeCodeAutofillHandler(LoxleyOneTimeCodeHandler handler)
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        g_loxleyOneTimeCodeHandler = handler;
+    });
 }
 
 static void loxley_applyFullScreenAppearance(UIScene *scene)
@@ -109,15 +298,6 @@ static void loxley_scene_willConnectToSession(id self, SEL _cmd, UIScene *scene,
     loxley_applyFullScreenAppearance(scene);
 }
 
-static void loxley_scene_didBecomeActive(id self, SEL _cmd, UIScene *scene)
-{
-    if (g_originalSceneDidBecomeActive) {
-        g_originalSceneDidBecomeActive(self, _cmd, scene);
-    }
-
-    loxley_applyFullScreenAppearance(scene);
-}
-
 @interface AmneziaSceneDelegateHooks : NSObject
 @end
 
@@ -147,15 +327,6 @@ static void loxley_scene_didBecomeActive(id self, SEL _cmd, UIScene *scene)
         method_setImplementation(willConnectMethod, reinterpret_cast<IMP>(loxley_scene_willConnectToSession));
     }
 
-    SEL didBecomeActiveSelector = @selector(sceneDidBecomeActive:);
-    Method didBecomeActiveMethod = class_getInstanceMethod(cls, didBecomeActiveSelector);
-    if (didBecomeActiveMethod) {
-        g_originalSceneDidBecomeActive = reinterpret_cast<SceneDidBecomeActive>(method_getImplementation(didBecomeActiveMethod));
-        method_setImplementation(didBecomeActiveMethod, reinterpret_cast<IMP>(loxley_scene_didBecomeActive));
-    } else {
-        const char *types = "v@:@";
-        class_addMethod(cls, didBecomeActiveSelector, reinterpret_cast<IMP>(loxley_scene_didBecomeActive), types);
-    }
 }
 
 @end

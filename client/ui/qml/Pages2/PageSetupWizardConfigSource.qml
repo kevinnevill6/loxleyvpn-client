@@ -25,6 +25,9 @@ PageType {
     property string codeText: ""
     property string statusText: ""
     property string toastText: ""
+    property string accountBlockTitle: ""
+    property string accountBlockMessage: ""
+    property bool accountBlockVisible: false
     property string searchText: ""
     property string backendUrlText: AppApiController.baseUrl
     property bool emailError: false
@@ -105,6 +108,9 @@ PageType {
 
         function onLoginSucceeded() {
             Qt.inputMethod.hide()
+            if (Qt.platform.os === "ios") {
+                AppApiController.setOneTimeCodeAutofillActive(false)
+            }
             root.guestMode = false
             root.statusText = "Профиль подключён"
             root.authStep = "email"
@@ -118,8 +124,7 @@ PageType {
         function onLoginFailed(message) {
             if (root.isAccountBlockingMessage(message || "")) {
                 root.resetCodeError()
-                root.statusText = message || "Вход сейчас недоступен"
-                root.showToast(root.statusText)
+                root.showAccountBlock(message || "Вход сейчас недоступен")
                 return
             }
 
@@ -144,6 +149,19 @@ PageType {
             Qt.callLater(function() {
                 codeInput.focusInput()
             })
+        }
+
+        function onOneTimeCodeReceived(code) {
+            if (root.authStep !== "code") {
+                return
+            }
+
+            var digits = (code || "").replace(/\D/g, "").slice(0, 6)
+            if (digits.length === 0) {
+                return
+            }
+
+            root.codeText = digits
         }
 
         function onEmailCodeRequestFailed(message) {
@@ -541,10 +559,13 @@ PageType {
 
                         MouseArea {
                             anchors.fill: parent
-                            onClicked: {
-                                root.authStep = "email"
-                                root.codeText = ""
-                                root.resetCodeError()
+                        onClicked: {
+                            if (Qt.platform.os === "ios") {
+                                AppApiController.setOneTimeCodeAutofillActive(false)
+                            }
+                            root.authStep = "email"
+                            root.codeText = ""
+                            root.resetCodeError()
                                 root.statusText = ""
                             }
                         }
@@ -590,6 +611,105 @@ PageType {
             secondary: true
             labelPixelSize: 14
             onClicked: root.enterGuestMode()
+        }
+    }
+
+    Item {
+        anchors.fill: parent
+        visible: root.accountBlockVisible
+        z: 90
+
+        Rectangle {
+            anchors.fill: parent
+            color: Qt.rgba(0, 0, 0, 0.48)
+        }
+
+        MouseArea {
+            anchors.fill: parent
+        }
+
+        Rectangle {
+            width: Math.min(parent.width - 42, 390)
+            anchors.centerIn: parent
+            radius: 28
+            color: Qt.rgba(0.08, 0.13, 0.10, 0.94)
+            border.color: root.glassLineStrong
+            border.width: 1
+            implicitHeight: accountBlockContent.implicitHeight + 36
+
+            Column {
+                id: accountBlockContent
+                width: parent.width - 36
+                anchors.centerIn: parent
+                spacing: 16
+
+                Rectangle {
+                    width: 48
+                    height: 48
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    radius: 24
+                    color: Qt.rgba(0.72, 0.95, 0.44, 0.14)
+                    border.color: root.loxleyAccent
+                    border.width: 1
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "!"
+                        color: root.loxleyAccent
+                        font.pixelSize: 25
+                        font.weight: Font.DemiBold
+                    }
+                }
+
+                Text {
+                    width: parent.width
+                    text: root.accountBlockTitle
+                    color: "#F4FFF6"
+                    font.pixelSize: 22
+                    font.weight: Font.DemiBold
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                }
+
+                Text {
+                    width: parent.width
+                    text: root.accountBlockMessage
+                    color: "#B9C8BF"
+                    font.pixelSize: 14
+                    lineHeight: 1.2
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                }
+
+                LoxleyButton {
+                    width: Math.min(parent.width, 260)
+                    height: 48
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "Изменить email"
+                    labelPixelSize: 15
+                    onClicked: {
+                        root.accountBlockVisible = false
+                        root.resetAuthForm()
+                        root.statusText = ""
+                        Qt.callLater(function() {
+                            emailInput.focusInput()
+                        })
+                    }
+                }
+
+                Text {
+                    width: parent.width
+                    text: "Понятно"
+                    color: root.loxleyAccent
+                    font.pixelSize: 14
+                    horizontalAlignment: Text.AlignHCenter
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: root.accountBlockVisible = false
+                    }
+                }
+            }
         }
     }
 
@@ -1298,6 +1418,7 @@ PageType {
 
         root.emailError = false
         root.resetCodeError()
+        root.accountBlockVisible = false
         if (root.backendUrlText.trim().length > 0) {
             AppApiController.baseUrl = root.backendUrlText.trim()
         }
@@ -1321,6 +1442,11 @@ PageType {
 
         root.codeError = false
         root.statusText = "Проверяем код"
+        if (Qt.platform.os === "ios") {
+            AppApiController.setOneTimeCodeAutofillActive(false)
+        }
+        Qt.inputMethod.hide()
+        root.forceActiveFocus()
         AppApiController.verifyEmailCode(root.pendingEmail || root.emailText.trim(), trimmedCode, AppApiController.deviceUuid, "", "android")
     }
 
@@ -1375,6 +1501,23 @@ PageType {
             || message.indexOf("Оформите доступ") !== -1
     }
 
+    function showAccountBlock(message) {
+        var safeMessage = message || "Вход сейчас недоступен"
+        var separatorIndex = safeMessage.indexOf(". ")
+
+        root.accountBlockTitle = separatorIndex > 0 ? safeMessage.substring(0, separatorIndex) : safeMessage
+        root.accountBlockMessage = separatorIndex > 0 ? safeMessage.substring(separatorIndex + 2) : "Проверьте доступ или напишите в поддержку."
+        root.statusText = ""
+        root.toastText = ""
+        toastTimer.stop()
+        if (Qt.platform.os === "ios") {
+            AppApiController.setOneTimeCodeAutofillActive(false)
+        }
+        Qt.inputMethod.hide()
+        root.forceActiveFocus()
+        root.accountBlockVisible = true
+    }
+
     function resetEmailError() {
         root.emailError = false
         root.emailShakeOffset = 0
@@ -1394,6 +1537,10 @@ PageType {
         root.authStep = "email"
         root.codeText = ""
         root.pendingEmail = ""
+        root.accountBlockVisible = false
+        if (Qt.platform.os === "ios") {
+            AppApiController.setOneTimeCodeAutofillActive(false)
+        }
         root.resetEmailError()
         root.resetCodeError()
     }
@@ -2228,15 +2375,16 @@ PageType {
             opacity: 0.01
             color: "transparent"
             cursorVisible: false
-            inputMethodHints: Qt.ImhDigitsOnly
-            maximumLength: 6
-            validator: RegularExpressionValidator {
-                regularExpression: /^[0-9]*$/
-            }
+            inputMethodHints: Qt.ImhDigitsOnly | Qt.ImhPreferNumbers
             onAccepted: {
                 if (text.length === 6 && !codeRoot.submittedFullCode) {
                     codeRoot.submittedFullCode = true
                     codeRoot.accepted(text)
+                }
+            }
+            onActiveFocusChanged: {
+                if (Qt.platform.os === "ios" && activeFocus) {
+                    AppApiController.setOneTimeCodeAutofillActive(activeFocus)
                 }
             }
             onTextChanged: {
@@ -2264,12 +2412,21 @@ PageType {
 
         function focusInput() {
             hiddenInput.forceActiveFocus()
+            if (Qt.platform.os === "ios") {
+                AppApiController.setOneTimeCodeAutofillActive(true)
+            }
             Qt.inputMethod.show()
         }
 
         function clearInput() {
             codeRoot.submittedFullCode = false
             hiddenInput.clear()
+        }
+
+        Component.onDestruction: {
+            if (Qt.platform.os === "ios") {
+                AppApiController.setOneTimeCodeAutofillActive(false)
+            }
         }
     }
 

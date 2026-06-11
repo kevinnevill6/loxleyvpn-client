@@ -6,6 +6,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkRequest>
+#include <QPointer>
 #include <QRegularExpression>
 #include <QSettings>
 #include <QSysInfo>
@@ -14,6 +15,27 @@
 
 #include "amneziaApplication.h"
 #include "version.h"
+
+#if defined(Q_OS_IOS)
+extern "C" void loxley_setOneTimeCodeAutofillActive(bool active);
+extern "C" void loxley_setOneTimeCodeAutofillHandler(void (*handler)(const char *code));
+
+QPointer<AppApiUiController> g_loxleyAppApiController;
+
+void loxley_handleOneTimeCodeAutofill(const char *code)
+{
+    const QString codeText = QString::fromUtf8(code).trimmed();
+    if (codeText.isEmpty()) {
+        return;
+    }
+
+    QMetaObject::invokeMethod(qApp, [codeText]() {
+        if (g_loxleyAppApiController) {
+            emit g_loxleyAppApiController->oneTimeCodeReceived(codeText);
+        }
+    }, Qt::QueuedConnection);
+}
+#endif
 
 #ifndef LOXLEY_APP_API_BASE_URL
 #define LOXLEY_APP_API_BASE_URL "https://staging.loxleyvpn.ru"
@@ -76,6 +98,14 @@ AppApiUiController::AppApiUiController(QObject *parent)
       m_baseUrl(normalizedBaseUrl(QStringLiteral(LOXLEY_APP_API_BASE_URL))),
       m_deviceUuid(stableDeviceUuid())
 {
+#if defined(Q_OS_IOS)
+    g_loxleyAppApiController = this;
+    loxley_setOneTimeCodeAutofillHandler(loxley_handleOneTimeCodeAutofill);
+    connect(this, &QObject::destroyed, this, []() {
+        g_loxleyAppApiController = nullptr;
+        loxley_setOneTimeCodeAutofillHandler(nullptr);
+    });
+#endif
 }
 
 QString AppApiUiController::baseUrl() const
@@ -387,6 +417,15 @@ void AppApiUiController::useMockMode()
 {
     clearSession();
     setMockMode(true);
+}
+
+void AppApiUiController::setOneTimeCodeAutofillActive(bool active)
+{
+#if defined(Q_OS_IOS)
+    loxley_setOneTimeCodeAutofillActive(active);
+#else
+    Q_UNUSED(active);
+#endif
 }
 
 void AppApiUiController::sendJsonPost(const QString &path, const QJsonObject &body, bool authenticated, ResponseHandler handler)

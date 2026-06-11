@@ -24,6 +24,10 @@ Window  {
                     root.visible = true
                     refreshTimer.restart()
                 }
+            } else if (Qt.platform.os === "ios" && Qt.application.state === Qt.ApplicationActive) {
+                root.visible = true
+                root.showFullScreen()
+                root.requestActivate()
             }
         }
     }
