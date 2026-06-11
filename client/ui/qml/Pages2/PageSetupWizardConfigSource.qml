@@ -139,6 +139,13 @@ PageType {
         }
 
         function onLoginFailed(message) {
+            if (root.isAccountBlockingMessage(message || "")) {
+                root.resetCodeError()
+                root.statusText = message || "Вход сейчас недоступен"
+                root.showToast(root.statusText)
+                return
+            }
+
             if (root.authStep === "code") {
                 root.showCodeError(message || "Код неверный или устарел")
             } else {
@@ -1498,6 +1505,12 @@ PageType {
         root.statusText = "Подписка не активна"
         root.showToast("Оформите доступ на сайте LoxleyVPN или в Telegram-боте")
         root.currentTab = root.tabProfile
+    }
+
+    function isAccountBlockingMessage(message) {
+        return message.indexOf("Лимит устройств") === 0
+            || message.indexOf("Подписка не активна") === 0
+            || message.indexOf("Оформите доступ") !== -1
     }
 
     function resetEmailError() {

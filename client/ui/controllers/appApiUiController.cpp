@@ -45,6 +45,17 @@ namespace
         return email.size() >= 6 && email.size() <= 320 && pattern.match(email).hasMatch();
     }
 
+    QString deviceLimitMessage(const QJsonObject &payload)
+    {
+        const int limit = payload.value("device_limit").toInt();
+        if (limit > 0) {
+            return QObject::tr("Лимит устройств исчерпан. Ваш тариф позволяет %1 устройство(а). Отвяжите старое устройство или измените тариф.")
+                .arg(limit);
+        }
+
+        return QObject::tr("Лимит устройств исчерпан. Отвяжите старое устройство или измените тариф.");
+    }
+
     QString stableDeviceUuid()
     {
         QSettings settings;
@@ -226,7 +237,10 @@ void AppApiUiController::verifyEmailCode(const QString &email, const QString &co
                  [this](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
         if (error != QNetworkReply::NoError || statusCode != 200) {
             const QJsonObject payload = objectFromBody(body);
-            const QString message = payload.value("message").toString(errorMessage(statusCode, error, errorString));
+            const QString errorCode = payload.value("error").toString();
+            const QString message = errorCode == QLatin1String("device_limit_exceeded")
+                ? deviceLimitMessage(payload)
+                : payload.value("message").toString(errorMessage(statusCode, error, errorString));
             const QJsonObject user = payload.value("user").toObject();
             if (!user.isEmpty()) {
                 setUserFromObject(user);
@@ -334,7 +348,10 @@ void AppApiUiController::fetchConfig(const QString &serverId)
             [this, trimmedServerId](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
         if (error != QNetworkReply::NoError || statusCode != 200) {
             const QJsonObject payload = objectFromBody(body);
-            const QString message = payload.value("message").toString(errorMessage(statusCode, error, errorString));
+            const QString errorCode = payload.value("error").toString();
+            const QString message = errorCode == QLatin1String("device_limit_exceeded")
+                ? deviceLimitMessage(payload)
+                : payload.value("message").toString(errorMessage(statusCode, error, errorString));
             emit configFailed(trimmedServerId, message, statusCode);
             return;
         }
