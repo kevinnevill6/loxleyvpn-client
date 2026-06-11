@@ -24,12 +24,12 @@ Current blockers are environment/signing, not backend architecture.
 - Xcode: 26.5
 - iPhoneOS SDK: 26.5
 - Available iOS simulators: present
-- Code signing identities: none found locally
+- Code signing identities: Apple Development signing is configured locally for the UI-only device build
 - Qt installed: `6.10.3/macos`, `6.10.3/android_arm64_v8a`, and `6.10.3/ios`
 - Qt iOS kit: installed through `aqtinstall`
 - Paired iPhone detected locally: yes
 
-This means the Mac can host iOS development and can compile an iOS UI-only app target. The current environment is still not ready to install a device build or test the VPN-enabled app because there are no local Apple signing identities/provisioning profiles.
+This means the Mac can host iOS development, compile an iOS UI-only app target, and install it on the paired iPhone. The environment is still not ready for the VPN-enabled app because real tunnel testing needs the full app/extension signing setup and Network Extension capability.
 
 ## UI-Only Build Result
 
@@ -91,6 +91,19 @@ Result:
 - Real VPN tunnel: not enabled or tested.
 - TestFlight/App Store: not used.
 
+Physical iPhone result:
+
+- Debug device build: passed with local Apple Development signing.
+- Device bundle ID: `com.loxleyvpn.client.ios.dev`
+- Installed and launched on the paired iPhone.
+- LoxleyVPN login UI is visible.
+- Network Extension/VPN tunnel is not embedded or enabled in this UI-only run.
+- Full-screen rendering on iPhone required:
+  - `UIRequiresFullScreen=true` in the app plist;
+  - `Qt.MaximizeUsingFullscreenGeometryHint` for the main QML window on iOS;
+  - a native iOS scene hook that keeps the Qt window/root view background and frame aligned with the full screen;
+  - iOS-specific top safe-area spacing so the launch/auth logo does not collide with the notch/status area.
+
 Simulator launch status:
 
 - The produced simulator app is `x86_64`.
@@ -98,7 +111,7 @@ Simulator launch status:
 - Qt 6.10.3 iOS kit from aqt provides an `x86_64` iOS Simulator slice and an `arm64` physical iOS device slice; it does not provide an `arm64` iOS Simulator slice.
 - Because of that, installation into the current simulator fails with an architecture mismatch.
 
-Next practical run target is a physical iPhone build after adding Apple development signing/provisioning. The paired iPhone is visible locally, but `security find-identity -v -p codesigning` reports no valid signing identities.
+Next practical milestone is App API smoke-testing on iOS UI-only. Real VPN tunnel testing remains a separate step because it requires the signed app + Packet Tunnel Provider extension path.
 
 ## Repository iOS Structure
 

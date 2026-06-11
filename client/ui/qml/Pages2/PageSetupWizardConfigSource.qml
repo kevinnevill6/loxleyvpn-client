@@ -36,6 +36,7 @@ PageType {
     readonly property bool authScreenVisible: !AppApiController.authenticated && !guestMode
     readonly property bool realApiMode: AppApiController.authenticated && !AppApiController.mockMode
     readonly property int bottomNavHeight: 66
+    readonly property int topSafeMargin: Qt.platform.os === "ios" ? Math.max(PageController.safeAreaTopMargin, 44) : PageController.safeAreaTopMargin
     readonly property int bottomNavSafeMargin: Math.max(12, PageController.safeAreaBottomMargin + 2)
     readonly property color glassFill: Qt.rgba(1, 1, 1, 0.082)
     readonly property color glassFillStrong: Qt.rgba(1, 1, 1, 0.13)
@@ -401,7 +402,7 @@ PageType {
                 id: authColumn
                 width: Math.min(parent.width - 60, 440)
                 anchors.horizontalCenter: parent.horizontalCenter
-                topPadding: 18 + PageController.safeAreaTopMargin
+                topPadding: 18 + root.topSafeMargin
                 spacing: 0
 
                 AppLogoHeader {
@@ -599,7 +600,7 @@ PageType {
         Flickable {
             id: appScroll
             anchors.fill: parent
-            anchors.topMargin: 34 + PageController.safeAreaTopMargin
+            anchors.topMargin: 34 + root.topSafeMargin
             anchors.bottomMargin: root.bottomNavHeight + root.bottomNavSafeMargin
             contentWidth: width
             contentHeight: Math.max(height, pageColumn.implicitHeight)

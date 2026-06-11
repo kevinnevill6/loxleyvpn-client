@@ -53,15 +53,17 @@ Window  {
         }
     }
 
+    flags: Qt.Window | (Qt.platform.os === "ios" ? Qt.MaximizeUsingFullscreenGeometryHint : 0)
+    visibility: Qt.platform.os === "ios" ? Window.FullScreen : Window.Windowed
     visible: true
     width: GC.screenWidth
     height: GC.screenHeight
     minimumWidth: GC.isDesktop() ? 360 : 0
     minimumHeight: GC.isDesktop() ? 640 : 0
-    maximumWidth: 600
-    maximumHeight: 800
+    maximumWidth: GC.isDesktop() ? 600 : 16777215
+    maximumHeight: GC.isDesktop() ? 800 : 16777215
 
-    color: AmneziaStyle.color.midnightBlack
+    color: "#050807"
 
     onClosing: function(close) {
         close.accepted = false
