@@ -25,6 +25,12 @@ set(IOS_TARGET_COMPILED_TYPES
 )
 
 ## Inspect all the targets, and add extra properties if necessary.
+##
+## Qt's aqt-distributed iOS 6.10.3 package currently ships the simulator slice
+## as x86_64 and the arm64 slice as device-only. Keep this configurable for
+## future Qt packages that provide arm64 simulator objects.
+set(LOXLEY_IOS_SIMULATOR_ARCH "x86_64" CACHE STRING "Architecture for iOS simulator builds")
+
 while(IOS_TARGETS)
     list(POP_FRONT IOS_TARGETS TARGET_NAME)
 
@@ -38,6 +44,6 @@ while(IOS_TARGETS)
     message("Patching architectures for ${TARGET_NAME}")
     set_target_properties(${TARGET_NAME} PROPERTIES
         XCODE_ATTRIBUTE_ARCHS[sdk=iphoneos*] "arm64"
-        XCODE_ATTRIBUTE_ARCHS[sdk=iphonesimulator*] "x86_64"
+        XCODE_ATTRIBUTE_ARCHS[sdk=iphonesimulator*] "${LOXLEY_IOS_SIMULATOR_ARCH}"
     )
 endwhile()

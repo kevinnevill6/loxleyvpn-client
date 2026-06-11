@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(PROJECT LoxleyVPN)
 set(AMNEZIAVPN_VERSION 4.9.0.2)
+option(LOXLEY_IOS_UI_ONLY "Build iOS app target without the VPN Network Extension for UI-only PoC" OFF)
 
 set(QT_CREATOR_SKIP_PACKAGE_MANAGER_SETUP ON CACHE BOOL "" FORCE)
 set(CMAKE_PROJECT_TOP_LEVEL_INCLUDES
@@ -17,6 +18,11 @@ project(${PROJECT} VERSION ${AMNEZIAVPN_VERSION}
         DESCRIPTION "LoxleyVPN"
         HOMEPAGE_URL "https://github.com/kevinnevill6/loxleyvpn-client"
 )
+
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS" AND LOXLEY_IOS_UI_ONLY)
+    set(ENV{LOXLEY_IOS_UI_ONLY} "1")
+    set(CONAN_INSTALL_BUILD_CONFIGURATIONS Debug CACHE STRING "Conan configurations for iOS UI-only PoC" FORCE)
+endif()
 
 # trigger conan to kick off `conan install` globally
 find_package(OpenSSL REQUIRED)

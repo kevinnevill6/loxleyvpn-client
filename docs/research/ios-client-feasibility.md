@@ -25,10 +25,80 @@ Current blockers are environment/signing, not backend architecture.
 - iPhoneOS SDK: 26.5
 - Available iOS simulators: present
 - Code signing identities: none found locally
-- Qt installed: `6.10.3/macos` and `6.10.3/android_arm64_v8a`
-- Qt iOS kit: not installed
+- Qt installed: `6.10.3/macos`, `6.10.3/android_arm64_v8a`, and `6.10.3/ios`
+- Qt iOS kit: installed through `aqtinstall`
+- Paired iPhone detected locally: yes
 
-This means the Mac can host iOS development, but the current environment is not ready to build and install the VPN-enabled iOS app.
+This means the Mac can host iOS development and can compile an iOS UI-only app target. The current environment is still not ready to install a device build or test the VPN-enabled app because there are no local Apple signing identities/provisioning profiles.
+
+## UI-Only Build Result
+
+The iOS UI-only build path was added and verified on 2026-06-11.
+
+Environment:
+
+- Qt host kit: `$HOME/Qt/6.10.3/macos`
+- Qt iOS kit: `$HOME/Qt/6.10.3/ios`
+- Additional Qt module required for configure/build: `qtshadertools`
+- Xcode generator build directory: `deploy/build-ios-ui`
+- UI-only bundle ID: `com.loxleyvpn.client.ios.dev`
+- UI-only App Group placeholder: `group.com.loxleyvpn.client.ios.dev`
+- UI-only deployment target: iOS 17.0, matching the Qt 6.10.3 iOS libraries used by the aqt package
+
+UI-only mode is controlled by:
+
+```bash
+LOXLEY_IOS_UI_ONLY=ON
+```
+
+In UI-only mode, the build excludes the Network Extension embedding path, StoreKit source files, iOS Swift VPN/log/screen-protection helpers, and tunnel-only Conan packages. It keeps the shared QML shell and App API-facing application code available for the first iOS UI proof.
+
+Configure command used:
+
+```bash
+QT_ROOT_PATH="$HOME/Qt/6.10.3" \
+QT_HOST_PATH="$HOME/Qt/6.10.3/macos" \
+LOXLEY_IOS_UI_ONLY=1 \
+LOXLEY_APP_API_BASE_URL="https://staging.loxleyvpn.ru" \
+cmake -S . -B deploy/build-ios-ui \
+  -G Xcode \
+  -DCMAKE_TOOLCHAIN_FILE="$HOME/Qt/6.10.3/ios/lib/cmake/Qt6/qt.toolchain.cmake" \
+  -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphonesimulator \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 \
+  -DLOXLEY_IOS_UI_ONLY=ON \
+  -DBUILD_IOS_APP_IDENTIFIER=com.loxleyvpn.client.ios.dev \
+  -DBUILD_IOS_GROUP_IDENTIFIER=group.com.loxleyvpn.client.ios.dev \
+  -DLOXLEY_APP_API_BASE_URL="https://staging.loxleyvpn.ru"
+```
+
+Build command used:
+
+```bash
+QT_ROOT_PATH="$HOME/Qt/6.10.3" \
+QT_HOST_PATH="$HOME/Qt/6.10.3/macos" \
+LOXLEY_IOS_UI_ONLY=1 \
+LOXLEY_APP_API_BASE_URL="https://staging.loxleyvpn.ru" \
+cmake --build deploy/build-ios-ui --config Debug --target LoxleyVPN
+```
+
+Result:
+
+- CMake configure: passed.
+- iOS UI-only app build: passed.
+- Build artifact: `deploy/build-ios-ui/client/Debug-iphonesimulator/LoxleyVPN.app`
+- Network Extension target: not embedded for UI-only.
+- Real VPN tunnel: not enabled or tested.
+- TestFlight/App Store: not used.
+
+Simulator launch status:
+
+- The produced simulator app is `x86_64`.
+- The available iOS 26.5 simulator devices on this Apple Silicon Mac support `arm64` only.
+- Qt 6.10.3 iOS kit from aqt provides an `x86_64` iOS Simulator slice and an `arm64` physical iOS device slice; it does not provide an `arm64` iOS Simulator slice.
+- Because of that, installation into the current simulator fails with an architecture mismatch.
+
+Next practical run target is a physical iPhone build after adding Apple development signing/provisioning. The paired iPhone is visible locally, but `security find-identity -v -p codesigning` reports no valid signing identities.
 
 ## Repository iOS Structure
 
@@ -112,7 +182,7 @@ CMAKE_BUILD_TYPE=Debug \
 deploy/build.sh -t ios
 ```
 
-Do not run this as the next command yet. First install Qt iOS kit and create Apple signing assets.
+Do not run this as the next command yet. The Qt iOS kit is installed, but Apple signing assets are still missing.
 
 ## Apple Requirements
 
@@ -200,8 +270,8 @@ Do not continue iOS work directly on the Android beta branch once code changes s
 
 ### Phase 1: Environment
 
-1. Install Qt 6.10.3 iOS kit into `~/Qt/6.10.3/ios`.
-2. Confirm `~/Qt/6.10.3/ios/lib/cmake/Qt6/qt.toolchain.cmake` exists.
+1. Qt 6.10.3 iOS kit is installed into `~/Qt/6.10.3/ios`.
+2. Confirmed `~/Qt/6.10.3/ios/lib/cmake/Qt6/qt.toolchain.cmake` exists through the UI-only configure path.
 3. Add Apple Developer account in Xcode.
 4. Create or download development signing certificate.
 5. Register test iPhone UDID.
@@ -219,9 +289,10 @@ Do not continue iOS work directly on the Android beta branch once code changes s
 
 Goal: launch the app shell before touching real VPN.
 
-1. Build iOS app with Loxley bundle IDs.
-2. Run on simulator or iPhone.
-3. Verify:
+1. UI-only iOS app now builds with the development bundle ID.
+2. Simulator install is blocked on this Mac by the Qt/simulator architecture mismatch described above.
+3. Next run attempt should use a physical iPhone after development signing is configured.
+4. Verify:
    - app opens;
    - LoxleyVPN splash/login/home/locations/profile render;
    - no old Amnezia shell is visible;
@@ -264,16 +335,15 @@ Yes, start iOS now, but as a separate iOS PoC branch.
 
 Fastest realistic path:
 
-1. Install Qt iOS kit.
-2. Set up Apple Developer signing/capabilities.
-3. Rebrand iOS bundle IDs/app group/entitlements.
-4. Build UI-only app.
-5. Connect App API.
-6. Then test real AmneziaWG tunnel.
+1. Set up Apple Developer signing/capabilities.
+2. Run the existing UI-only build on the paired physical iPhone.
+3. Rebrand remaining iOS bundle IDs/app group/entitlements for the VPN-enabled path.
+4. Connect App API on iOS.
+5. Then test real AmneziaWG tunnel.
 
 Expected effort:
 
-- UI-only first launch: 1-2 focused sessions after Qt iOS kit and signing are ready.
+- UI-only first launch on physical iPhone: likely 1 focused session after signing is ready.
 - App API parity with Android: likely 1-2 sessions because the controller/QML flow is shared.
 - Real VPN connect: 2-5 sessions depending on signing, entitlement, AWG config mapping, and iOS-specific tunnel errors.
 

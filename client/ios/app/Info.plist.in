@@ -70,11 +70,11 @@
 	<key>UIUserInterfaceStyle</key>
 	<string>Light</string>
 	<key>com.wireguard.ios.app_group_id</key>
-	<string>group.org.amnezia.AmneziaVPN</string>
+	<string>${BUILD_IOS_GROUP_IDENTIFIER}</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Amnezia VPN needs access to the camera for reading QR-codes.</string>
+	<string>LoxleyVPN needs access to the camera for reading QR-codes.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
@@ -94,11 +94,11 @@
 				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>Amnezia VPN config</string>
+			<string>LoxleyVPN config</string>
 			<key>UTTypeIconFiles</key>
 			<array/>
 			<key>UTTypeIdentifier</key>
-			<string>org.amnezia.AmneziaVPN.amnezia-config</string>
+			<string>${BUILD_IOS_APP_IDENTIFIER}.loxleyvpn-config</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>

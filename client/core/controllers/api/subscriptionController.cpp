@@ -30,7 +30,7 @@
 #include "core/models/containerConfig.h"
 #include "core/models/api/apiConfig.h"
 
-#if defined(Q_OS_IOS) || defined(MACOS_NE)
+#if (defined(Q_OS_IOS) && !defined(LOXLEY_IOS_UI_ONLY)) || defined(MACOS_NE)
     #include "platforms/ios/ios_controller.h"
     #include <AmneziaVPN-Swift.h>
 #endif
@@ -673,7 +673,7 @@ void SubscriptionController::removeApiConfig(const QString &serverId)
         return;
     }
 
-#if defined(Q_OS_IOS) || defined(MACOS_NE)
+#if (defined(Q_OS_IOS) && !defined(LOXLEY_IOS_UI_ONLY)) || defined(MACOS_NE)
     QString description = apiV2->description;
     QString hostName = apiV2->hostName;
     QString vpncName = QString("%1 (%2) %3")

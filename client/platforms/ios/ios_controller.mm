@@ -10,7 +10,9 @@
 
 #include "../core/protocols/vpnProtocol.h"
 #import "ios_controller_wrapper.h"
-#import "StoreKitController.h"
+#if !defined(LOXLEY_IOS_UI_ONLY)
+    #import "StoreKitController.h"
+#endif
 
 const char* Action::start = "start";
 const char* Action::restart = "restart";
@@ -146,8 +148,10 @@ IosController::IosController() : QObject()
     s_instance = this;
     m_iosControllerWrapper = [[IosControllerWrapper alloc] initWithCppController:this];
 
-    // Initialize StoreKitController early to start observing the payment queue
+    // Initialize StoreKitController early to start observing the payment queue.
+#if !defined(LOXLEY_IOS_UI_ONLY)
     [StoreKitController sharedInstance];
+#endif
 
     [[NSNotificationCenter defaultCenter]
         removeObserver: (__bridge NSObject *)m_iosControllerWrapper];
@@ -1043,6 +1047,13 @@ void IosController::purchaseProduct(const QString &productId,
                                                       const QString &originalTransactionId,
                                                       const QString &errorString)> &&callback)
 {
+#if defined(LOXLEY_IOS_UI_ONLY)
+    Q_UNUSED(productId);
+    if (callback) {
+        callback(false, QString(), QString(), QString(), "StoreKit is disabled for UI-only build");
+    }
+    return;
+#else
     qInfo().noquote() << "[IAP][IosController] purchaseProduct called" << productId;
     if (@available(iOS 15.0, macOS 12.0, *)) {
         StoreKitController *controller = [StoreKitController sharedInstance];
@@ -1070,12 +1081,19 @@ void IosController::purchaseProduct(const QString &productId,
             callback(false, QString(), QString(), QString(), "StoreKit 2 requires iOS 15.0 or later");
         }
     }
+#endif
 }
 
 void IosController::restorePurchases(std::function<void(bool success,
                                                        const QList<QVariantMap> &transactions,
                                                        const QString &errorString)> &&callback)
 {
+#if defined(LOXLEY_IOS_UI_ONLY)
+    if (callback) {
+        callback(false, QList<QVariantMap>(), "StoreKit is disabled for UI-only build");
+    }
+    return;
+#else
     if (@available(iOS 15.0, macOS 12.0, *)) {
         StoreKitController *controller = [StoreKitController sharedInstance];
         __block auto cb = std::move(callback);
@@ -1114,6 +1132,7 @@ void IosController::restorePurchases(std::function<void(bool success,
             callback(false, QList<QVariantMap>(), "StoreKit 2 requires iOS 15.0 or later");
         }
     }
+#endif
 }
 
 void IosController::fetchProducts(const QStringList &productIds,
@@ -1121,6 +1140,13 @@ void IosController::fetchProducts(const QStringList &productIds,
                                                      const QStringList &invalidIds,
                                                      const QString &errorString)> &&callback)
 {
+#if defined(LOXLEY_IOS_UI_ONLY)
+    Q_UNUSED(productIds);
+    if (callback) {
+        callback(QList<QVariantMap>(), QStringList(), "StoreKit is disabled for UI-only build");
+    }
+    return;
+#else
     if (@available(iOS 15.0, macOS 12.0, *)) {
         StoreKitController *controller = [StoreKitController sharedInstance];
         NSMutableSet<NSString *> *ids = [NSMutableSet setWithCapacity:productIds.size()];
@@ -1175,6 +1201,7 @@ void IosController::fetchProducts(const QStringList &productIds,
             callback(QList<QVariantMap>(), QStringList(), "StoreKit 2 requires iOS 15.0 or later");
         }
     }
+#endif
 }
 
 void IosController::requestInetAccess() {
