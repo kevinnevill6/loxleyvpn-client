@@ -15,7 +15,6 @@ PageType {
     property int tabSettings: 3
     property int currentTab: tabHome
     property int selectedServerIndex: 0
-    property int protocolIndex: 0
 
     property bool guestMode: false
     property bool russianBypass: IpSplitTunnelingController.russianServicesBypassEnabled
@@ -79,29 +78,6 @@ PageType {
             "latency": "резерв"
         }
     ]
-    readonly property var protocolModes: [
-        {
-            "title": "Auto",
-            "description": "Клиент сам выбирает основной или резервный протокол."
-        },
-        {
-            "title": "LoxleyWG",
-            "description": "Основной режим для LoxleyVPN v0.1."
-        },
-        {
-            "title": "LoxleyWG Extra",
-            "description": "Усиленный WireGuard-профиль для нестабильных сетей."
-        },
-        {
-            "title": "Xray",
-            "description": "Резервный протокол для сетей с жёсткой фильтрацией."
-        },
-        {
-            "title": "Xray Extra",
-            "description": "Резервный режим с дополнительной маскировкой."
-        }
-    ]
-
     onAuthScreenVisibleChanged: {
         if (root.authScreenVisible) {
             root.resetAuthForm()
@@ -1253,79 +1229,7 @@ PageType {
             ScreenHeader {
                 width: parent.width
                 title: "Настройки"
-                subtitle: "Выберите протокол и правила маршрутизации."
-            }
-
-            Column {
-                width: parent.width
-                spacing: 10
-
-                Repeater {
-                    model: root.protocolModes
-
-                    delegate: Rectangle {
-                        required property int index
-                        required property var modelData
-
-                        width: parent.width
-                        radius: 18
-                        color: index === root.protocolIndex ? Qt.rgba(0.72, 0.95, 0.42, 0.15) : root.glassFill
-                        border.color: index === root.protocolIndex ? root.glassLineStrong : Qt.rgba(1, 1, 1, 0.06)
-                        implicitHeight: protocolRow.implicitHeight + 24
-
-                        Row {
-                            id: protocolRow
-                            width: parent.width - 26
-                            anchors.centerIn: parent
-                            spacing: 12
-
-                            Rectangle {
-                                width: 22
-                                height: 22
-                                radius: 11
-                                color: "transparent"
-                                border.color: index === root.protocolIndex ? root.loxleyAccent : "#7A8B78"
-                                border.width: 2
-
-                                Rectangle {
-                                    width: 10
-                                    height: 10
-                                    radius: 5
-                                    anchors.centerIn: parent
-                                    color: root.loxleyAccent
-                                    visible: index === root.protocolIndex
-                                }
-                            }
-
-                            Column {
-                                width: parent.width - 34
-                                spacing: 4
-
-                                Text {
-                                    width: parent.width
-                                    text: modelData.title
-                                    color: "#F3FFF7"
-                                    font.pixelSize: 16
-                                    font.weight: Font.DemiBold
-                                }
-
-                                Text {
-                                    width: parent.width
-                                    text: modelData.description
-                                    color: "#93A79D"
-                                    font.pixelSize: 12
-                                    lineHeight: 1.15
-                                    wrapMode: Text.WordWrap
-                                }
-                            }
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: root.protocolIndex = index
-                        }
-                    }
-                }
+                subtitle: "Короткие параметры приложения."
             }
 
             Rectangle {
@@ -1357,7 +1261,7 @@ PageType {
 
                         Text {
                             width: parent.width
-                            text: "Маршрутизация останется быстрее для локальных банков, госуслуг и маркетплейсов."
+                            text: "Банки, госуслуги и маркетплейсы будут открываться напрямую, если функция включена."
                             color: "#93A79D"
                             font.pixelSize: 12
                             lineHeight: 1.15
@@ -1368,49 +1272,6 @@ PageType {
                     MiniToggle {
                         checked: root.russianBypass
                         onClicked: root.setRussianBypass(!root.russianBypass)
-                    }
-                }
-            }
-
-            Rectangle {
-                width: parent.width
-                radius: 20
-                color: root.glassFill
-                border.color: Qt.rgba(1, 1, 1, 0.06)
-                border.width: 1
-                implicitHeight: backendColumn.implicitHeight + 28
-
-                Column {
-                    id: backendColumn
-                    width: parent.width - 28
-                    anchors.centerIn: parent
-                    spacing: 10
-
-                    Text {
-                        width: parent.width
-                        text: "Тестовый backend"
-                        color: "#F3FFF7"
-                        font.pixelSize: 15
-                        font.weight: Font.DemiBold
-                    }
-
-                    Text {
-                        width: parent.width
-                        text: "Поле нужно только для PoC-сборки. В релизе адрес будет задан приложением."
-                        color: "#93A79D"
-                        font.pixelSize: 12
-                        lineHeight: 1.15
-                        wrapMode: Text.WordWrap
-                    }
-
-                    LoxleyTextField {
-                        width: parent.width
-                        text: root.backendUrlText
-                        placeholderText: "http://127.0.0.1:8000"
-                        onTextChanged: {
-                            root.backendUrlText = text
-                            AppApiController.baseUrl = text
-                        }
                     }
                 }
             }
