@@ -23,7 +23,7 @@ env:
 jobs:
   windows-x64:
     name: Windows x64 ${{ inputs.build_config }}
-    runs-on: windows-latest
+    runs-on: windows-2022
     timeout-minutes: 120
 
     steps:
@@ -62,10 +62,23 @@ jobs:
         run: pip install "conan==2.29.0"
 
       - name: Build Windows client
-        shell: cmd
+        shell: pwsh
         env:
           QT_INSTALL_DIR: ${{ runner.temp }}
-        run: deploy\build.bat --config ${{ inputs.build_config }} --architecture amd64
+        run: |
+          cmd /c "deploy\build.bat --config ${{ inputs.build_config }} --architecture amd64" 2>&1 |
+            Tee-Object -FilePath windows-poc-build.log
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+      - name: Upload Windows build log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: LoxleyVPN-windows-x64-${{ inputs.build_config }}-build-log
+          path: windows-poc-build.log
+          retention-days: 7
 
       - name: Upload Windows build folder
         uses: actions/upload-artifact@v7
