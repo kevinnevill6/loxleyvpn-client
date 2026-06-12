@@ -1,0 +1,75 @@
+name: Windows PoC Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_config:
+        description: Windows build configuration
+        required: true
+        default: Debug
+        type: choice
+        options:
+          - Debug
+          - Release
+
+concurrency:
+  group: windows-poc-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  QT_VERSION: 6.10.3
+  QT_MIRROR: https://mirrors.ocf.berkeley.edu/qt/
+
+jobs:
+  windows-x64:
+    name: Windows x64 ${{ inputs.build_config }}
+    runs-on: windows-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 10
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: qtremoteobjects qt5compat qtshadertools
+          dir: ${{ runner.temp }}
+          setup-python: true
+          set-env: true
+          aqtversion: ==3.3.0
+          py7zrversion: ==0.22.*
+          extra: --base ${{ env.QT_MIRROR }}
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install Conan
+        run: pip install "conan==2.29.0"
+
+      - name: Build Windows client
+        shell: cmd
+        env:
+          QT_INSTALL_DIR: ${{ runner.temp }}
+        run: deploy\build.bat --config ${{ inputs.build_config }} --architecture amd64
+
+      - name: Upload Windows build folder
+        uses: actions/upload-artifact@v7
+        with:
+          name: LoxleyVPN-windows-x64-${{ inputs.build_config }}
+          path: deploy/build/client/${{ inputs.build_config }}/
+          retention-days: 7
