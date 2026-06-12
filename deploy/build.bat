@@ -10,10 +10,13 @@ if /i "%~1" == "-i"             set "ARG_BUILD_INSTALLERS=!ARG_BUILD_INSTALLERS!
 if /i "%~1" == "--installer"    set "ARG_BUILD_INSTALLERS=!ARG_BUILD_INSTALLERS! %~2" & shift
 if /i "%~1" == "-arch"          set "ARCH=%~2" & shift
 if /i "%~1" == "--architecture" set "ARCH=%~2" & shift
+if /i "%~1" == "-c"             set "BUILD_CONFIG=%~2" & shift
+if /i "%~1" == "--config"       set "BUILD_CONFIG=%~2" & shift
 shift
 goto :parse_args
 :done_args
 
+if not defined BUILD_CONFIG set "BUILD_CONFIG=Release"
 if defined ARG_BUILD_INSTALLERS set "ARG_BUILD_INSTALLERS=%ARG_BUILD_INSTALLERS:all=ifw wix%"
 
 :: understand toolchain arch (host_target) and Qt prefix path
@@ -95,8 +98,8 @@ if exist "%VCVARS_PATH%" (
 
 :: build project and installers
 @echo on
-cmake -S "%PROJECT_DIR%" -B "%BUILD_DIR%" -DCMAKE_BUILD_TYPE=Release "-DCMAKE_PREFIX_PATH=%QT_ROOT_PATH%\msvc2022_%_qt_postfix_arg%" "-DCMAKE_VS_GLOBALS=UseMultiToolTask=true;EnforceProcessCountAcrossBuilds=true" || goto :fail
-cmake --build "%BUILD_DIR%" --config Release -- /m  || goto :fail
+cmake -S "%PROJECT_DIR%" -B "%BUILD_DIR%" -DCMAKE_BUILD_TYPE=%BUILD_CONFIG% "-DCMAKE_PREFIX_PATH=%QT_ROOT_PATH%\msvc2022_%_qt_postfix_arg%" "-DCMAKE_VS_GLOBALS=UseMultiToolTask=true;EnforceProcessCountAcrossBuilds=true" || goto :fail
+cmake --build "%BUILD_DIR%" --config %BUILD_CONFIG% -- /m  || goto :fail
 @echo off
 for %%I in (%ARG_BUILD_INSTALLERS%) do (
     if /i "%%I" == "ifw" call :do_ifw
