@@ -80,9 +80,56 @@ jobs:
           path: windows-poc-build.log
           retention-days: 7
 
-      - name: Upload Windows build folder
+      - name: Package Windows portable folder
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $buildConfig = "${{ inputs.build_config }}"
+          $buildDir = Join-Path $env:GITHUB_WORKSPACE "deploy/build/client/$buildConfig"
+          $portableDir = Join-Path $env:GITHUB_WORKSPACE "deploy/build/LoxleyVPN-WINDOWS-x64-$buildConfig-PoC"
+          $sourceExe = Join-Path $buildDir "AmneziaVPN.exe"
+          $targetExe = Join-Path $portableDir "LoxleyVPN.exe"
+
+          if (!(Test-Path $sourceExe)) {
+            throw "Expected Windows executable was not found: $sourceExe"
+          }
+
+          if (Test-Path $portableDir) {
+            Remove-Item $portableDir -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $portableDir | Out-Null
+
+          Copy-Item $sourceExe $targetExe -Force
+          Get-ChildItem $buildDir -File |
+            Where-Object { @(".exp", ".lib", ".pdb", ".ilk") -notcontains $_.Extension -and $_.Name -ne "AmneziaVPN.exe" } |
+            Copy-Item -Destination $portableDir -Force
+
+          $qmlDir = Join-Path $env:GITHUB_WORKSPACE "client/ui/qml"
+          $deployArgs = @("--compiler-runtime", "--qmldir", $qmlDir)
+          if ($buildConfig -eq "Debug") {
+            $deployArgs += "--debug"
+          } else {
+            $deployArgs += "--release"
+          }
+          $deployArgs += $targetExe
+
+          windeployqt @deployArgs
+
+          @(
+            "LoxleyVPN Windows x64 $buildConfig PoC"
+            ""
+            "How to run:"
+            "1. Extract this ZIP archive to a normal folder."
+            "2. Open the extracted folder."
+            "3. Run LoxleyVPN.exe."
+            ""
+            "This is a technical PoC build, not a signed installer."
+          ) | Set-Content -Encoding UTF8 (Join-Path $portableDir "README-WINDOWS.txt")
+
+      - name: Upload Windows portable package
         uses: actions/upload-artifact@v7
         with:
-          name: LoxleyVPN-windows-x64-${{ inputs.build_config }}
-          path: deploy/build/client/${{ inputs.build_config }}/
+          name: LoxleyVPN-WINDOWS-x64-${{ inputs.build_config }}-PoC
+          path: deploy/build/LoxleyVPN-WINDOWS-x64-${{ inputs.build_config }}-PoC/
           retention-days: 7
