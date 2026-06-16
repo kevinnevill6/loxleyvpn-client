@@ -11,6 +11,8 @@
 #include <QSettings>
 #include <QSysInfo>
 #include <QUrl>
+#include <QDesktopServices>
+#include <QUrlQuery>
 #include <QUuid>
 
 #include "amneziaApplication.h"
@@ -55,6 +57,16 @@ namespace
         return value;
     }
 
+    QString normalizedAccountPath(QString value)
+    {
+        value = value.trimmed();
+        if (value.isEmpty() || !value.startsWith('/') || value.startsWith("//")) {
+            return QStringLiteral("/account");
+        }
+
+        return value;
+    }
+
     QJsonObject objectFromBody(const QByteArray &body)
     {
         const QJsonDocument doc = QJsonDocument::fromJson(body);
@@ -91,6 +103,33 @@ namespace
 
         return uuid;
     }
+
+    constexpr auto kBaseUrlKey = "loxley/appApiBaseUrl";
+    constexpr auto kTokenKey = "loxley/appApiToken";
+    constexpr auto kUserKey = "loxley/appApiUser";
+    constexpr auto kServersKey = "loxley/appApiServers";
+
+    QVariantMap variantMapFromJson(const QByteArray &json)
+    {
+        const QJsonDocument doc = QJsonDocument::fromJson(json);
+        return doc.isObject() ? doc.object().toVariantMap() : QVariantMap {};
+    }
+
+    QVariantList variantListFromJson(const QByteArray &json)
+    {
+        const QJsonDocument doc = QJsonDocument::fromJson(json);
+        return doc.isArray() ? doc.array().toVariantList() : QVariantList {};
+    }
+
+    QByteArray jsonFromVariantMap(const QVariantMap &map)
+    {
+        return QJsonDocument(QJsonObject::fromVariantMap(map)).toJson(QJsonDocument::Compact);
+    }
+
+    QByteArray jsonFromVariantList(const QVariantList &list)
+    {
+        return QJsonDocument(QJsonArray::fromVariantList(list)).toJson(QJsonDocument::Compact);
+    }
 }
 
 AppApiUiController::AppApiUiController(QObject *parent)
@@ -98,6 +137,8 @@ AppApiUiController::AppApiUiController(QObject *parent)
       m_baseUrl(normalizedBaseUrl(QStringLiteral(LOXLEY_APP_API_BASE_URL))),
       m_deviceUuid(stableDeviceUuid())
 {
+    restoreSession();
+
 #if defined(Q_OS_IOS)
     g_loxleyAppApiController = this;
     loxley_setOneTimeCodeAutofillHandler(loxley_handleOneTimeCodeAutofill);
@@ -121,6 +162,9 @@ void AppApiUiController::setBaseUrl(const QString &baseUrl)
     }
 
     m_baseUrl = normalized;
+    QSettings settings;
+    settings.setValue(QString::fromLatin1(kBaseUrlKey), m_baseUrl);
+    settings.sync();
     emit baseUrlChanged();
 }
 
@@ -199,6 +243,7 @@ void AppApiUiController::login(const QString &code, const QString &deviceUuid, c
         m_token = token;
         setUserFromObject(user);
         setMockMode(false);
+        saveSession();
 
         if (!wasAuthenticated) {
             emit authenticatedChanged();
@@ -292,6 +337,7 @@ void AppApiUiController::verifyEmailCode(const QString &email, const QString &co
         m_token = token;
         setUserFromObject(user);
         setMockMode(false);
+        saveSession();
 
         if (!wasAuthenticated) {
             emit authenticatedChanged();
@@ -311,6 +357,12 @@ void AppApiUiController::fetchMe()
     sendGet(QStringLiteral("/api/app/me"), true,
             [this](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
         if (error != QNetworkReply::NoError || statusCode != 200) {
+            if (statusCode == 401) {
+                const QString message = authFailureMessage(body);
+                clearSession();
+                emit meFailed(message);
+                return;
+            }
             const QString message = objectFromBody(body).value("message").toString(errorMessage(statusCode, error, errorString));
             emit meFailed(message);
             return;
@@ -338,6 +390,12 @@ void AppApiUiController::fetchServers()
             [this](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
         if (error != QNetworkReply::NoError || statusCode != 200) {
             const QJsonObject payload = objectFromBody(body);
+            if (statusCode == 401) {
+                const QString message = authFailureMessage(body);
+                clearSession();
+                emit serversFailed(message);
+                return;
+            }
             const QString message = payload.value("message").toString(errorMessage(statusCode, error, errorString));
             const QJsonObject user = payload.value("user").toObject();
             if (!user.isEmpty()) {
@@ -378,6 +436,12 @@ void AppApiUiController::fetchConfig(const QString &serverId)
             [this, trimmedServerId](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
         if (error != QNetworkReply::NoError || statusCode != 200) {
             const QJsonObject payload = objectFromBody(body);
+            if (statusCode == 401) {
+                const QString message = authFailureMessage(body);
+                clearSession();
+                emit configFailed(trimmedServerId, message, statusCode);
+                return;
+            }
             const QString errorCode = payload.value("error").toString();
             const QString message = errorCode == QLatin1String("device_limit_exceeded")
                 ? deviceLimitMessage(payload)
@@ -399,12 +463,45 @@ void AppApiUiController::fetchConfig(const QString &serverId)
     });
 }
 
+void AppApiUiController::openAccountPath(const QString &path)
+{
+    const QString accountPath = normalizedAccountPath(path);
+
+    if (!ensureAuthenticated()) {
+        QDesktopServices::openUrl(QUrl(endpoint(accountPath)));
+        return;
+    }
+
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("path"), accountPath);
+
+    sendGet(QStringLiteral("/api/app/account-link?%1").arg(query.query(QUrl::FullyEncoded)), true,
+            [this, accountPath](int statusCode, const QByteArray &body, QNetworkReply::NetworkError error, const QString &errorString) {
+        if (error != QNetworkReply::NoError || statusCode != 200) {
+            const QString message = objectFromBody(body).value("message").toString(errorMessage(statusCode, error, errorString));
+            emit accountLinkFailed(message);
+            QDesktopServices::openUrl(QUrl(endpoint(accountPath)));
+            return;
+        }
+
+        const QUrl url(objectFromBody(body).value("url").toString());
+        if (!url.isValid() || url.scheme().isEmpty() || url.host().isEmpty()) {
+            emit accountLinkFailed(tr("Backend не вернул ссылку на кабинет"));
+            QDesktopServices::openUrl(QUrl(endpoint(accountPath)));
+            return;
+        }
+
+        QDesktopServices::openUrl(url);
+    });
+}
+
 void AppApiUiController::clearSession()
 {
     const bool wasAuthenticated = authenticated();
     m_token.clear();
     m_user.clear();
     m_servers.clear();
+    clearStoredSession();
 
     if (wasAuthenticated) {
         emit authenticatedChanged();
@@ -506,6 +603,9 @@ void AppApiUiController::setUserFromObject(const QJsonObject &object)
 {
     m_user = object.toVariantMap();
     emit userChanged();
+    if (authenticated()) {
+        saveSession();
+    }
 }
 
 void AppApiUiController::setServersFromArray(const QJsonArray &array)
@@ -519,6 +619,54 @@ void AppApiUiController::setServersFromArray(const QJsonArray &array)
 
     m_servers = servers;
     emit serversChanged();
+    if (authenticated()) {
+        saveSession();
+    }
+}
+
+void AppApiUiController::restoreSession()
+{
+    QSettings settings;
+    m_baseUrl = normalizedBaseUrl(settings.value(QString::fromLatin1(kBaseUrlKey), m_baseUrl).toString());
+    m_token = settings.value(QString::fromLatin1(kTokenKey)).toString();
+    m_user = variantMapFromJson(settings.value(QString::fromLatin1(kUserKey)).toByteArray());
+    m_servers = variantListFromJson(settings.value(QString::fromLatin1(kServersKey)).toByteArray());
+
+    if (m_token.isEmpty()) {
+        m_user.clear();
+        m_servers.clear();
+    }
+}
+
+void AppApiUiController::saveSession() const
+{
+    QSettings settings;
+    settings.setValue(QString::fromLatin1(kBaseUrlKey), m_baseUrl);
+    settings.setValue(QString::fromLatin1(kTokenKey), m_token);
+    settings.setValue(QString::fromLatin1(kUserKey), jsonFromVariantMap(m_user));
+    settings.setValue(QString::fromLatin1(kServersKey), jsonFromVariantList(m_servers));
+    settings.sync();
+}
+
+void AppApiUiController::clearStoredSession() const
+{
+    QSettings settings;
+    settings.remove(QString::fromLatin1(kTokenKey));
+    settings.remove(QString::fromLatin1(kUserKey));
+    settings.remove(QString::fromLatin1(kServersKey));
+    settings.sync();
+}
+
+QString AppApiUiController::authFailureMessage(const QByteArray &body) const
+{
+    const QJsonObject payload = objectFromBody(body);
+    const QString errorCode = payload.value("error").toString();
+
+    if (errorCode == QLatin1String("device_revoked")) {
+        return payload.value("message").toString(tr("Устройство отвязано. Войдите заново."));
+    }
+
+    return payload.value("message").toString(tr("Войдите заново"));
 }
 
 QString AppApiUiController::errorMessage(int statusCode, QNetworkReply::NetworkError error, const QString &errorString) const

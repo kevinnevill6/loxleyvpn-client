@@ -16,6 +16,8 @@ Window  {
     id: root
     objectName: "mainWindow"
 
+    readonly property bool mobileFullscreen: Qt.platform.os === "android" || Qt.platform.os === "ios"
+
     Connections {
         target: Qt.application
         function onStateChanged() {
@@ -57,11 +59,11 @@ Window  {
         }
     }
 
-    flags: Qt.Window | (Qt.platform.os === "ios" ? Qt.MaximizeUsingFullscreenGeometryHint : 0)
-    visibility: Qt.platform.os === "ios" ? Window.FullScreen : Window.Windowed
+    flags: Qt.Window | (mobileFullscreen ? Qt.MaximizeUsingFullscreenGeometryHint : 0)
+    visibility: mobileFullscreen ? Window.FullScreen : Window.Windowed
     visible: true
-    width: GC.screenWidth
-    height: GC.screenHeight
+    width: mobileFullscreen ? Screen.width : GC.screenWidth
+    height: mobileFullscreen ? Screen.height : GC.screenHeight
     minimumWidth: GC.isDesktop() ? 360 : 0
     minimumHeight: GC.isDesktop() ? 640 : 0
     maximumWidth: GC.isDesktop() ? 600 : 16777215

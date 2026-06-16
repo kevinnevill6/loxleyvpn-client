@@ -37,6 +37,7 @@
         <file>controls/home.svg</file>
         <file>controls/infinity.svg</file>
         <file>controls/info.svg</file>
+        <file>controls/lightning.svg</file>
         <file>controls/mail.svg</file>
         <file>controls/map-pin.svg</file>
         <file>controls/more-vertical.svg</file>
@@ -44,6 +45,7 @@
         <file>controls/news-unread.svg</file>
         <file>controls/unread-dot.svg</file>
         <file>controls/plus.svg</file>
+        <file>controls/power.svg</file>
         <file>controls/qr-code.svg</file>
         <file>controls/radio-button-inner-circle-pressed.png</file>
         <file>controls/radio-button-inner-circle.png</file>
@@ -58,6 +60,7 @@
         <file>controls/settings-2.svg</file>
         <file>controls/settings.svg</file>
         <file>controls/settings-news.svg</file>
+        <file>controls/shield-check.svg</file>
         <file>controls/share-2.svg</file>
         <file>controls/split-tunneling.svg</file>
         <file>controls/smartphone.svg</file>

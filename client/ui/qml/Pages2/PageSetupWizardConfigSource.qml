@@ -25,6 +25,7 @@ PageType {
     property string codeText: ""
     property string statusText: ""
     property string toastText: ""
+    property bool toastIsError: false
     property string accountBlockTitle: ""
     property string accountBlockMessage: ""
     property bool accountBlockVisible: false
@@ -35,12 +36,18 @@ PageType {
     property bool codeErrorCleared: false
     property int emailShakeOffset: 0
     property int codeShakeOffset: 0
+    property bool profileMenuOpen: false
+    property bool vpnActionPending: false
+    property bool vpnObservedConnectionProgress: false
+    property string vpnActionText: ""
+    property var pendingVpnAction: null
 
     readonly property bool authScreenVisible: !AppApiController.authenticated && !guestMode
     readonly property bool realApiMode: AppApiController.authenticated && !AppApiController.mockMode
-    readonly property int bottomNavHeight: 66
-    readonly property int topSafeMargin: Qt.platform.os === "ios" ? Math.max(PageController.safeAreaTopMargin, 44) : PageController.safeAreaTopMargin
-    readonly property int bottomNavSafeMargin: Math.max(12, PageController.safeAreaBottomMargin + 2)
+    readonly property bool vpnBusy: vpnActionPending || ConnectionController.isConnectionInProgress
+    readonly property int bottomNavHeight: Qt.platform.os === "android" ? 58 : 66
+    readonly property int topSafeMargin: Qt.platform.os === "ios" ? Math.max(PageController.safeAreaTopMargin, 44) : (Qt.platform.os === "android" ? Math.max(PageController.safeAreaTopMargin, 34) : PageController.safeAreaTopMargin)
+    readonly property int bottomNavSafeMargin: Qt.platform.os === "ios" ? Math.max(10, PageController.safeAreaBottomMargin + 2) : (Qt.platform.os === "android" ? Math.max(PageController.safeAreaBottomMargin, 48) : 8)
     readonly property color glassFill: Qt.rgba(1, 1, 1, 0.082)
     readonly property color glassFillStrong: Qt.rgba(1, 1, 1, 0.13)
     readonly property color glassLine: Qt.rgba(0.78, 0.98, 0.62, 0.27)
@@ -101,7 +108,14 @@ PageType {
         })
     }
 
-    Component.onCompleted: Qt.callLater(root.refreshServersIfNeeded)
+    Component.onCompleted: Qt.callLater(function() {
+        if (AppApiController.authenticated) {
+            root.guestMode = false
+            AppApiController.fetchMe()
+            AppApiController.fetchServers()
+        }
+        root.refreshServersIfNeeded()
+    })
 
     Connections {
         target: AppApiController
@@ -132,10 +146,18 @@ PageType {
                 root.showCodeError(message || "Код неверный или устарел")
             } else {
                 root.statusText = message || "Не удалось войти"
+                root.showToast(root.statusText, true)
             }
         }
 
         function onAuthenticatedChanged() {
+            if (AppApiController.authenticated) {
+                root.guestMode = false
+                AppApiController.fetchMe()
+                AppApiController.fetchServers()
+            } else {
+                root.profileMenuOpen = false
+            }
             root.refreshServersIfNeeded()
         }
 
@@ -167,6 +189,7 @@ PageType {
         function onEmailCodeRequestFailed(message) {
             root.statusText = message || "Не удалось отправить код"
             root.emailError = true
+            root.showToast(root.statusText, true)
             emailShakeAnimation.restart()
             Qt.callLater(function() {
                 emailInput.focusInput()
@@ -185,16 +208,21 @@ PageType {
 
         function onMeFailed(message) {
             root.statusText = message || "Ошибка запроса"
-            root.showToast(root.statusText)
+            if (!root.authScreenVisible) {
+                root.showToast(root.statusText)
+            }
         }
 
         function onServersFailed(message) {
             root.statusText = message || "Ошибка запроса"
-            root.showToast(root.statusText)
+            if (!root.authScreenVisible) {
+                root.showToast(root.statusText)
+            }
         }
 
         function onConfigFetched(serverId, protocol, config, fakeConfig) {
             if (fakeConfig) {
+                root.finishVpnAction()
                 root.statusText = "Тестовый сервер доступен. Реальный туннель не создаётся."
                 root.showToast(root.statusText)
                 return
@@ -206,6 +234,7 @@ PageType {
         }
 
         function onConfigFailed(serverId, message, statusCode) {
+            root.finishVpnAction()
             if (statusCode === 501) {
                 root.statusText = "Резервный протокол пока не включён"
             } else {
@@ -213,18 +242,43 @@ PageType {
             }
             root.showToast(root.statusText)
         }
+
+        function onAccountLinkFailed(message) {
+            root.showToast(message || "Не удалось открыть кабинет")
+        }
     }
 
     Connections {
         target: ImportController
 
         function onImportErrorOccurred(errorCode, unusedHomeRedirect) {
+            root.finishVpnAction()
             root.statusText = "Ошибка импорта конфигурации"
             root.showToast(root.statusText)
         }
 
         function onImportFinished() {
             root.statusText = "Профиль VPN готов"
+        }
+    }
+
+    Connections {
+        target: ConnectionController
+
+        function onConnectionStateChanged() {
+            if (ConnectionController.isConnected) {
+                root.finishVpnAction()
+            } else if (ConnectionController.isConnectionInProgress) {
+                root.vpnObservedConnectionProgress = true
+                root.vpnActionPending = false
+                vpnPendingFallbackTimer.stop()
+            } else if (root.vpnObservedConnectionProgress) {
+                root.finishVpnAction()
+            }
+        }
+
+        function onConnectionErrorOccurred(errorCode) {
+            root.finishVpnAction()
         }
     }
 
@@ -398,7 +452,7 @@ PageType {
             id: authScroll
 
             anchors.fill: parent
-            anchors.bottomMargin: 100 + PageController.safeAreaBottomMargin
+            anchors.bottomMargin: Math.max(100 + PageController.safeAreaBottomMargin, PageController.imeHeight > 0 ? PageController.imeHeight + 12 : 0)
             contentWidth: width
             contentHeight: authColumn.implicitHeight + 56
             interactive: contentHeight > height + 1
@@ -466,7 +520,7 @@ PageType {
 
                 Item {
                     width: parent.width
-                    height: 42
+                    height: root.authStep === "code" ? 22 : 28
                 }
 
                 Column {
@@ -592,7 +646,7 @@ PageType {
                 Text {
                     width: parent.width
                     text: root.statusText
-                    visible: text.length > 0
+                    visible: false
                     color: "#BDEB7B"
                     font.pixelSize: 13
                     wrapMode: Text.WordWrap
@@ -796,7 +850,8 @@ PageType {
                 width: Math.min(parent.width - 32, 520)
                 height: root.bottomNavHeight
                 anchors.horizontalCenter: parent.horizontalCenter
-                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: root.bottomNavSafeMargin
                 spacing: 8
 
                 NavItem {
@@ -827,14 +882,15 @@ PageType {
     }
 
     Rectangle {
+        readonly property bool showAtTop: root.authScreenVisible
+
         width: Math.min(parent.width - 38, 440)
         height: Math.max(58, toastMessage.implicitHeight + 28)
         anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: root.bottomNavHeight + root.bottomNavSafeMargin + 12
+        y: showAtTop ? root.topSafeMargin + 12 : parent.height - height - root.bottomNavHeight - root.bottomNavSafeMargin - 12
         radius: 18
-        color: "#2E6F4E"
-        border.color: "#87C86C"
+        color: root.toastIsError ? Qt.rgba(0.38, 0.10, 0.11, 0.96) : "#2E6F4E"
+        border.color: root.toastIsError ? Qt.rgba(1, 0.43, 0.45, 0.58) : "#87C86C"
         opacity: toastTimer.running ? 1 : 0
         visible: opacity > 0
 
@@ -849,11 +905,156 @@ PageType {
             anchors.fill: parent
             anchors.margins: 12
             text: root.toastText
-            color: "#E9FFF1"
+            color: root.toastIsError ? "#FFE4E5" : "#E9FFF1"
             font.pixelSize: 13
             wrapMode: Text.WordWrap
             verticalAlignment: Text.AlignVCenter
             horizontalAlignment: Text.AlignHCenter
+        }
+    }
+
+    Popup {
+        id: deleteProfileConfirmPopup
+
+        parent: Overlay.overlay
+        width: Math.min(336, parent.width - 32)
+        height: deleteProfileConfirmCard.implicitHeight
+        x: Math.round((parent.width - width) / 2)
+        y: Math.round((parent.height - height) / 2)
+        padding: 0
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnPressOutside | Popup.CloseOnEscape
+
+        Overlay.modal: Rectangle {
+            color: Qt.rgba(0.01, 0.03, 0.02, 0.62)
+        }
+
+        background: Rectangle {
+            id: deleteProfileConfirmCard
+
+            radius: 24
+            color: Qt.rgba(0.11, 0.16, 0.15, 0.97)
+            border.color: Qt.rgba(1, 1, 1, 0.08)
+            border.width: 1
+            implicitHeight: confirmDeleteContent.implicitHeight + 28
+
+            Column {
+                id: confirmDeleteContent
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 14
+                spacing: 14
+
+                Rectangle {
+                    width: 50
+                    height: 50
+                    radius: 18
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    color: Qt.rgba(0.42, 0.14, 0.16, 0.26)
+                    border.color: Qt.rgba(1, 0.45, 0.47, 0.18)
+                    border.width: 1
+
+                    Image {
+                        id: deleteProfileConfirmIcon
+
+                        width: 20
+                        height: 20
+                        anchors.centerIn: parent
+                        source: "qrc:/images/controls/trash.svg"
+                        visible: false
+                    }
+
+                    ColorOverlay {
+                        anchors.fill: deleteProfileConfirmIcon
+                        source: deleteProfileConfirmIcon
+                        color: "#FF8A8D"
+                        opacity: 0.96
+                    }
+                }
+
+                Column {
+                    width: parent.width
+                    spacing: 6
+
+                    Text {
+                        width: parent.width
+                        text: "Удалить профиль?"
+                        color: "#F7FBFF"
+                        font.family: "sans-serif-medium"
+                        font.pixelSize: 18
+                        font.weight: Font.DemiBold
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: "Профиль удаляется только в личном кабинете. После подтверждения откроем нужный раздел на сайте."
+                        color: "#B7C8BF"
+                        font.pixelSize: 13
+                        wrapMode: Text.WordWrap
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                }
+
+                Row {
+                    width: parent.width
+                    spacing: 10
+
+                    Rectangle {
+                        width: (parent.width - 10) / 2
+                        height: 48
+                        radius: 16
+                        color: confirmDeleteCancelTap.pressed ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
+                        border.color: Qt.rgba(0.70, 0.90, 0.55, 0.26)
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Нет"
+                            color: "#D8E8DD"
+                            font.pixelSize: 16
+                            font.weight: Font.DemiBold
+                        }
+
+                        MouseArea {
+                            id: confirmDeleteCancelTap
+
+                            anchors.fill: parent
+                            onClicked: deleteProfileConfirmPopup.close()
+                        }
+                    }
+
+                    Rectangle {
+                        width: (parent.width - 10) / 2
+                        height: 48
+                        radius: 16
+                        color: confirmDeleteAcceptTap.pressed ? Qt.rgba(0.34, 0.11, 0.13, 0.96) : Qt.rgba(0.22, 0.08, 0.10, 0.92)
+                        border.color: Qt.rgba(1, 0.47, 0.49, 0.26)
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Да"
+                            color: "#FF9EA0"
+                            font.pixelSize: 16
+                            font.weight: Font.DemiBold
+                        }
+
+                        MouseArea {
+                            id: confirmDeleteAcceptTap
+
+                            anchors.fill: parent
+                            onClicked: {
+                                deleteProfileConfirmPopup.close()
+                                root.confirmDeleteProfile()
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -862,117 +1063,154 @@ PageType {
         interval: 3200
     }
 
+    Timer {
+        id: vpnPendingFallbackTimer
+
+        interval: 30000
+        repeat: false
+        onTriggered: {
+            if (!ConnectionController.isConnected && !ConnectionController.isConnectionInProgress && root.vpnActionPending) {
+                root.finishVpnAction()
+                root.statusText = "VPN не запустился"
+                root.showToast("Попробуйте подключиться ещё раз")
+            }
+        }
+    }
+
+    Timer {
+        id: vpnActionStartTimer
+
+        interval: 90
+        repeat: false
+        onTriggered: {
+            var action = root.pendingVpnAction
+            root.pendingVpnAction = null
+            if (action) {
+                action()
+            }
+        }
+    }
+
     Component {
         id: homeScreen
 
         Column {
+            id: homeColumn
+
             width: parent.width
-            spacing: 18
+            spacing: 12
 
-            Item {
+            Column {
+                id: homeMainContent
+
                 width: parent.width
-                height: 30
+                spacing: homeColumn.spacing
 
-                Row {
-                    anchors.centerIn: parent
-                    width: Math.min(parent.width, warningIcon.width + connectionWarning.implicitWidth + 10)
-                    height: parent.height
-                    spacing: 10
+                Item {
+                    width: parent.width
+                    height: 30
 
-                    Image {
-                        id: warningIcon
-                        width: 20
-                        height: 20
-                        anchors.verticalCenter: parent.verticalCenter
-                        source: "qrc:/images/controls/map-pin.svg"
-                        opacity: 0.9
-                    }
+                    Row {
+                        anchors.centerIn: parent
+                        width: Math.min(parent.width, warningIcon.width + connectionWarning.implicitWidth + 10)
+                        height: parent.height
+                        spacing: 10
 
-                    Text {
-                        id: connectionWarning
-                        width: parent.width - warningIcon.width - parent.spacing
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: ConnectionController.isConnected ? "VPN включён" : "Без VPN соединение не защищено"
-                        color: ConnectionController.isConnected ? "#83F2BF" : "#FF8B8B"
-                        font.pixelSize: 14
-                        horizontalAlignment: Text.AlignHCenter
-                        elide: Text.ElideRight
-                        maximumLineCount: 1
-                    }
-                }
-            }
-
-            Rectangle {
-                width: parent.width
-                radius: 30
-                color: root.glassFillStrong
-                opacity: 0.96
-                border.color: root.glassLineStrong
-                border.width: 1
-                implicitHeight: locationRow.implicitHeight + 30
-
-                Row {
-                    id: locationRow
-                    width: parent.width - 34
-                    anchors.centerIn: parent
-                    spacing: 16
-
-                    FlagBadge {
-                        width: 52
-                        height: 52
-                        server: root.selectedServer()
-                    }
-
-                    Column {
-                        width: parent.width - 68
-                        spacing: 4
-
-                        Text {
-                            width: parent.width
-                            text: "Выбранная локация"
-                            color: "#C5D7BF"
-                            font.pixelSize: 15
-                            elide: Text.ElideRight
+                        Image {
+                            id: warningIcon
+                            width: 20
+                            height: 20
+                            anchors.verticalCenter: parent.verticalCenter
+                            source: "qrc:/images/controls/map-pin.svg"
+                            opacity: 0.9
                         }
 
                         Text {
-                            width: parent.width
-                            text: root.serverDisplayTitle(root.selectedServer())
-                            color: "#F7FBFF"
-                            font.pixelSize: 22
-                            font.weight: Font.DemiBold
+                            id: connectionWarning
+                            width: parent.width - warningIcon.width - parent.spacing
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: ConnectionController.isConnected ? "VPN включён" : "Без VPN соединение не защищено"
+                            color: ConnectionController.isConnected ? "#83F2BF" : "#FF8B8B"
+                            font.pixelSize: 14
+                            horizontalAlignment: Text.AlignHCenter
                             elide: Text.ElideRight
+                            maximumLineCount: 1
                         }
                     }
                 }
 
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: root.currentTab = root.tabLocations
+                Rectangle {
+                    width: parent.width
+                    radius: 26
+                    color: root.glassFillStrong
+                    opacity: 0.96
+                    border.color: root.glassLineStrong
+                    border.width: 1
+                    implicitHeight: locationRow.implicitHeight + 24
+
+                    Row {
+                        id: locationRow
+                        width: parent.width - 30
+                        anchors.centerIn: parent
+                        spacing: 14
+
+                        FlagBadge {
+                            width: 46
+                            height: 46
+                            server: root.selectedServer()
+                        }
+
+                        Column {
+                            width: parent.width - 60
+                            spacing: 4
+
+                            Text {
+                                width: parent.width
+                                text: "Выбранная локация"
+                                color: "#C5D7BF"
+                                font.pixelSize: 13
+                                elide: Text.ElideRight
+                            }
+
+                            Text {
+                                width: parent.width
+                                text: root.serverDisplayTitle(root.selectedServer())
+                                color: "#F7FBFF"
+                                font.pixelSize: 20
+                                font.weight: Font.DemiBold
+                                elide: Text.ElideRight
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: root.currentTab = root.tabLocations
+                    }
                 }
-            }
 
-            Item {
-                width: parent.width
-                height: 68
-            }
+                Item {
+                    width: parent.width
+                    height: Math.max(84, Math.min(136, appScroll.height * 0.15))
+                }
 
-            Text {
-                width: parent.width
-                text: ConnectionController.isConnected ? "Вы подключены" : "Вы не подключены"
-                color: "#F7FBFF"
-                font.pixelSize: 21
-                font.weight: Font.DemiBold
-                horizontalAlignment: Text.AlignHCenter
-            }
+                Text {
+                    width: parent.width
+                    text: ConnectionController.isConnected ? "Вы подключены" : "Вы не подключены"
+                    color: "#F7FBFF"
+                    font.pixelSize: 17
+                    font.weight: Font.DemiBold
+                    horizontalAlignment: Text.AlignHCenter
+                }
 
-            VpnToggle {
-                width: Math.min(parent.width - 54, 344)
-                anchors.horizontalCenter: parent.horizontalCenter
-                connected: ConnectionController.isConnected
-                busy: ConnectionController.isConnectionInProgress
-                onClicked: root.toggleSelectedServer()
-            }
+                VpnToggle {
+                    width: Math.min(parent.width - 74, 318)
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    connected: ConnectionController.isConnected
+                    busy: root.vpnBusy
+                    busyText: root.vpnActionText
+                    onClicked: root.toggleSelectedServer()
+                }
 
                 Text {
                     width: parent.width
@@ -981,8 +1219,30 @@ PageType {
                     color: "#AABBB0"
                     font.pixelSize: 14
                     lineHeight: 1.22
-                wrapMode: Text.WordWrap
-                horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                }
+            }
+
+            Item {
+                width: parent.width
+                height: Math.max(16, appScroll.height - homeMainContent.implicitHeight - homeRecommendedCard.height - homeColumn.spacing * 2 - 34)
+                visible: homeRecommendedCard.visible
+            }
+
+            RecommendedServerCard {
+                id: homeRecommendedCard
+
+                width: parent.width
+                visible: root.currentServers().length > 0
+                server: root.recommendedServer()
+                compact: false
+                onClicked: {
+                    var server = root.recommendedServer()
+                    if (server && server.id) {
+                        root.selectedServerIndex = root.serverIndexById(server.id)
+                    }
+                }
             }
         }
     }
@@ -992,14 +1252,39 @@ PageType {
 
         Column {
             width: parent.width
-            spacing: 22
+            spacing: 13
+
+            Text {
+                width: parent.width
+                text: "Локации"
+                color: "#F7FBFF"
+                font.family: "sans-serif-medium"
+                font.pixelSize: 18
+                font.weight: Font.DemiBold
+                horizontalAlignment: Text.AlignLeft
+                maximumLineCount: 1
+            }
+
+            RecommendedServerCard {
+                width: parent.width
+                visible: root.currentServers().length > 0
+                server: root.recommendedServer()
+                compact: true
+                onClicked: {
+                    var server = root.recommendedServer()
+                    if (server && server.id) {
+                        root.selectedServerIndex = root.serverIndexById(server.id)
+                        root.currentTab = root.tabHome
+                    }
+                }
+            }
 
             Row {
                 width: parent.width
-                spacing: 10
+                spacing: 11
 
                 Rectangle {
-                    width: parent.width - 64
+                    width: parent.width - 72
                     height: 44
                     radius: 22
                     color: root.glassFill
@@ -1028,8 +1313,8 @@ PageType {
                     TextField {
                         id: searchInput
                         anchors.fill: parent
-                        anchors.leftMargin: 48
-                        anchors.rightMargin: 16
+                        anchors.leftMargin: 50
+                        anchors.rightMargin: 18
                         text: root.searchText
                         placeholderText: "Поиск"
                         placeholderTextColor: "#9AAFA0"
@@ -1042,7 +1327,7 @@ PageType {
                 }
 
                 Rectangle {
-                    width: 54
+                    width: 56
                     height: 44
                     radius: 22
                     color: root.glassFill
@@ -1061,8 +1346,8 @@ PageType {
 
                     SortGlyph {
                         anchors.centerIn: parent
-                        width: 23
-                        height: 25
+                        width: 20
+                        height: 21
                         ascending: root.sortAscending
                     }
 
@@ -1076,19 +1361,20 @@ PageType {
 
             Rectangle {
                 width: parent.width
-                radius: 24
+                height: root.filteredServers().length > 0 ? root.filteredServers().length * 56 + 10 : 104
+                radius: 20
                 color: root.glassFill
                 border.color: Qt.rgba(1, 1, 1, 0.075)
                 border.width: 1
                 opacity: 0.96
-                implicitHeight: locationsList.implicitHeight + 18
+                implicitHeight: height
 
                 Column {
                     id: locationsList
-                    width: parent.width - 36
+                    width: parent.width - 28
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.top
-                    anchors.topMargin: 9
+                    anchors.topMargin: 5
 
                     Repeater {
                         model: root.filteredServers()
@@ -1098,51 +1384,51 @@ PageType {
                             required property var modelData
 
                             width: parent.width
-                            height: 78
+                            height: 56
 
                             Row {
                                 id: serverRow
                                 width: parent.width
                                 anchors.verticalCenter: parent.verticalCenter
-                                spacing: 16
+                                spacing: 12
 
                                 FlagBadge {
-                                    width: 48
-                                    height: 48
+                                    width: 34
+                                    height: 34
                                     server: modelData
                                 }
 
                                 Text {
-                                    width: parent.width - 126
+                                    width: parent.width - 88
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: root.serverDisplayTitle(modelData)
                                     color: root.serverIndexById(modelData.id) === root.selectedServerIndex ? root.loxleyAccent : "#F7FBFF"
                                     font.family: "sans-serif-medium"
-                                    font.pixelSize: 20
+                                    font.pixelSize: 15
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideRight
                                 }
 
                                 Item {
-                                    width: 62
-                                    height: 48
+                                    width: 42
+                                    height: 32
 
                                     Column {
                                         anchors.centerIn: parent
-                                        spacing: 3
+                                        spacing: 2
 
                                         QualityBars {
-                                            width: 42
-                                            height: 22
+                                            width: 28
+                                            height: 16
                                             anchors.horizontalCenter: parent.horizontalCenter
                                             quality: modelData.quality || root.qualityForStatus(modelData.status)
                                         }
 
                                         Text {
-                                            width: 62
+                                            width: 42
                                             text: modelData.latency || ""
                                             color: "#AABBB0"
-                                            font.pixelSize: 10
+                                            font.pixelSize: 8
                                             horizontalAlignment: Text.AlignHCenter
                                             elide: Text.ElideRight
                                             maximumLineCount: 1
@@ -1193,114 +1479,259 @@ PageType {
     Component {
         id: profileScreen
 
-            Column {
-                id: profileRoot
+        Column {
+            id: profileRoot
+
+            width: parent.width
+            spacing: 10
+
+            Text {
+                id: profileTitle
 
                 width: parent.width
-                spacing: 16
+                text: "Профиль"
+                color: "#F7FBFF"
+                font.family: "sans-serif-medium"
+                font.pixelSize: 18
+                font.weight: Font.DemiBold
+                horizontalAlignment: Text.AlignLeft
+                maximumLineCount: 1
+            }
 
-                Text {
-                    id: profileTitle
+            Item {
+                width: parent.width
+                height: AppApiController.authenticated ? 34 : 0
+                visible: AppApiController.authenticated
+                z: 20
 
-                    width: parent.width
-                    text: "Профиль"
-                    color: "#F7FBFF"
-                    font.family: "sans-serif-medium"
-                    font.pixelSize: 34
-                    font.weight: Font.DemiBold
-                    horizontalAlignment: Text.AlignHCenter
-                    maximumLineCount: 1
-                    fontSizeMode: Text.HorizontalFit
-                    minimumPixelSize: 30
-                }
+                Row {
+                    id: profileIdentityRow
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 8
 
-                Item {
-                    id: profileHero
+                    Text {
+                        id: profileEmailText
 
-                    width: parent.width
-                    height: 304
+                        width: Math.min(implicitWidth, profileRoot.width - profileActionsButton.width - profileIdentityRow.spacing)
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.profileEmail()
+                        color: "#F7FBFF"
+                        font.family: "sans-serif-medium"
+                        font.pixelSize: 14
+                        elide: Text.ElideMiddle
+                        maximumLineCount: 1
+                    }
 
-                    Column {
-                        id: profileColumn
-                        width: parent.width
-                        anchors.centerIn: parent
-                        spacing: 16
+                    Rectangle {
+                        id: profileActionsButton
 
-                        Rectangle {
-                            width: 108
-                            height: 108
-                            radius: 54
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            color: Qt.rgba(0.72, 0.95, 0.42, 0.09)
-                            border.color: Qt.rgba(0.78, 0.98, 0.62, 0.28)
-                            border.width: 1
+                        width: 30
+                        height: 30
+                        radius: 11
+                        color: profileMenuTap.pressed ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(1, 1, 1, 0.10)
+                        border.color: Qt.rgba(1, 1, 1, 0.08)
+                        border.width: 1
 
-                            Rectangle {
-                                anchors.fill: parent
-                                anchors.margins: 5
-                                radius: parent.radius - 5
-                                color: "transparent"
-                                border.color: Qt.rgba(1, 1, 1, 0.07)
-                                border.width: 1
-                            }
+                        Image {
+                            id: profileMoreIcon
 
-                            ShieldAvatarGlyph {
-                                width: 66
-                                height: 72
-                                anchors.centerIn: parent
-                                color: root.loxleyAccent
-                                mutedColor: "#DCEED2"
-                            }
+                            width: 15
+                            height: 15
+                            anchors.centerIn: parent
+                            source: "qrc:/images/controls/more-vertical.svg"
+                            visible: false
                         }
 
-                        Column {
-                            width: parent.width
-                            spacing: 8
-
-                            Text {
-                                width: parent.width
-                                text: AppApiController.authenticated ? "Профиль активен" : "Вы не авторизованы"
-                                color: "#F7FBFF"
-                                font.family: "sans-serif-medium"
-                                font.pixelSize: 29
-                                font.weight: Font.DemiBold
-                                horizontalAlignment: Text.AlignHCenter
-                                wrapMode: Text.WordWrap
-                                maximumLineCount: 2
-                                fontSizeMode: Text.HorizontalFit
-                                minimumPixelSize: 25
-                            }
-
-                            Text {
-                                width: Math.min(parent.width - 24, 430)
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: AppApiController.authenticated ? root.subscriptionSummary() : "Войдите, чтобы управлять подпиской и подключением"
-                                color: "#AFC1B2"
-                                font.pixelSize: 16
-                                lineHeight: 1.18
-                                horizontalAlignment: Text.AlignHCenter
-                                wrapMode: Text.WordWrap
-                            }
+                        ColorOverlay {
+                            anchors.fill: profileMoreIcon
+                            source: profileMoreIcon
+                            color: "#F3FFF7"
+                            opacity: 0.92
                         }
 
-                    LoxleyButton {
-                        width: Math.max(240, Math.min(parent.width * 0.76, 332))
-                        height: 60
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        labelPixelSize: 18
-                        text: AppApiController.authenticated ? "Выйти" : "Войти"
-                        secondary: AppApiController.authenticated
-                        onClicked: {
-                            if (AppApiController.authenticated) {
-                                AppApiController.clearSession()
-                                root.guestMode = true
-                                root.statusText = "Профиль отключён"
-                            } else {
-                                root.guestMode = false
+                        MouseArea {
+                            id: profileMenuTap
+                            anchors.fill: parent
+                            onClicked: {
+                                root.profileMenuOpen = !root.profileMenuOpen
+                                if (root.profileMenuOpen) {
+                                    profileActionsPopup.open()
+                                } else {
+                                    profileActionsPopup.close()
+                                }
                             }
                         }
                     }
                 }
+
+                Popup {
+                    id: profileActionsPopup
+
+                    width: Math.min(206, parent.width - 24)
+                    height: 73
+                    x: Math.max(0, Math.min(profileIdentityRow.x + profileActionsButton.x + profileActionsButton.width - width, parent.width - width))
+                    y: profileIdentityRow.y + profileActionsButton.y + profileActionsButton.height + 8
+                    padding: 0
+                    modal: false
+                    focus: true
+                    closePolicy: Popup.CloseOnPressOutside | Popup.CloseOnEscape
+                    onClosed: root.profileMenuOpen = false
+                    onOpened: root.profileMenuOpen = true
+
+                    background: Rectangle {
+                        radius: 14
+                        color: Qt.rgba(0.16, 0.24, 0.23, 0.96)
+                        border.color: Qt.rgba(1, 1, 1, 0.08)
+                        border.width: 1
+                    }
+
+                    contentItem: Column {
+
+                        ProfileMenuItem {
+                            width: profileActionsPopup.width
+                            height: 36
+                            text: "Удалить профиль"
+                            danger: true
+                            onClicked: {
+                                profileActionsPopup.close()
+                                root.deleteProfileRequested()
+                            }
+                        }
+
+                        Rectangle {
+                            width: profileActionsPopup.width
+                            height: 1
+                            color: Qt.rgba(1, 1, 1, 0.09)
+                        }
+
+                        ProfileMenuItem {
+                            width: profileActionsPopup.width
+                            height: 36
+                            text: "Выйти из профиля"
+                            danger: false
+                            onClicked: {
+                                profileActionsPopup.close()
+                                root.logoutProfile()
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                id: subscriptionCard
+
+                width: parent.width
+                radius: 20
+                color: root.glassFillStrong
+                border.color: Qt.rgba(1, 1, 1, 0.07)
+                border.width: 1
+                implicitHeight: 76
+
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: 1
+                    radius: parent.radius - 1
+                    color: "transparent"
+                    border.color: Qt.rgba(1, 1, 1, 0.07)
+                    border.width: 1
+                }
+
+                Row {
+                    id: subscriptionCardRow
+                    width: parent.width - 24
+                    anchors.centerIn: parent
+                    spacing: 10
+
+                    Rectangle {
+                        width: 36
+                        height: 36
+                        radius: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: root.appUserCanConnect() ? Qt.rgba(0.72, 0.95, 0.42, 0.14) : Qt.rgba(1, 1, 1, 0.08)
+                        border.color: root.appUserCanConnect() ? Qt.rgba(0.78, 0.98, 0.62, 0.32) : Qt.rgba(1, 1, 1, 0.10)
+                        border.width: 1
+
+                        Image {
+                            id: subscriptionStatusIcon
+
+                            width: 22
+                            height: 22
+                            anchors.centerIn: parent
+                            source: "qrc:/images/controls/shield-check.svg"
+                            visible: false
+                            smooth: true
+                        }
+
+                        ColorOverlay {
+                            anchors.fill: subscriptionStatusIcon
+                            source: subscriptionStatusIcon
+                            color: root.appUserCanConnect() ? "#B9F36E" : "#DDE8DF"
+                            opacity: root.appUserCanConnect() ? 0.98 : 0.62
+                        }
+                    }
+
+                    Column {
+                        width: parent.width - 36 - subscriptionActionButton.width - 20
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 4
+
+                        Text {
+                            width: parent.width
+                            text: AppApiController.authenticated ? root.profileAccessTitle() : "Вы не авторизованы"
+                            color: "#F7FBFF"
+                            font.family: "sans-serif-medium"
+                            font.pixelSize: 14
+                            font.weight: Font.DemiBold
+                            elide: Text.ElideRight
+                            maximumLineCount: 1
+                        }
+
+                        Row {
+                            width: parent.width
+                            height: 16
+                            visible: root.profileDeviceText().length > 0
+
+                            Text {
+                                width: parent.width
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: root.profileDeviceText()
+                                color: "#AFC1B2"
+                                font.pixelSize: 10
+                                elide: Text.ElideRight
+                                maximumLineCount: 1
+                            }
+                        }
+                    }
+
+                    LoxleyButton {
+                        id: subscriptionActionButton
+
+                        width: AppApiController.authenticated && root.appUserCanConnect() ? 82 : 94
+                        height: 30
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: AppApiController.authenticated ? (root.appUserCanConnect() ? "Кабинет" : "Оформить") : "Войти"
+                        secondary: AppApiController.authenticated && root.appUserCanConnect()
+                        labelPixelSize: 12
+                        onClicked: {
+                            if (!AppApiController.authenticated) {
+                                root.guestMode = false
+                                return
+                            }
+                            root.openAccountUrl(root.appUserCanConnect() ? "/account" : "/account/plans")
+                        }
+                    }
+                }
+            }
+
+            Item {
+                id: profileActionsSpacer
+
+                readonly property real profileFreeSpace: Math.max(160, appScroll.height - profileTitle.implicitHeight - (AppApiController.authenticated ? 34 : 0) - subscriptionCard.implicitHeight - profileSettingsRow.implicitHeight - profileHelpRow.implicitHeight - profileAskButton.height - versionLabel.implicitHeight - copyrightLabel.implicitHeight - profileRoot.spacing * 10 - 44)
+
+                width: parent.width
+                height: Math.max(104, Math.min(220, profileFreeSpace * 0.52))
             }
 
             MenuRow {
@@ -1310,7 +1741,10 @@ PageType {
                 iconSource: "qrc:/images/controls/settings-2.svg"
                 title: "Настройки"
                 subtitle: ""
-                onClicked: root.currentTab = root.tabSettings
+                onClicked: {
+                    root.profileMenuOpen = false
+                    root.currentTab = root.tabSettings
+                }
             }
 
             MenuRow {
@@ -1318,14 +1752,61 @@ PageType {
 
                 width: parent.width
                 iconSource: "qrc:/images/controls/help-circle.svg"
+                trailingIconSource: "qrc:/images/controls/external-link.svg"
                 title: "Справочный центр"
                 subtitle: ""
-                onClicked: root.showToast("Раздел помощи появится в следующей версии")
+                onClicked: root.openAccountUrl("/support")
             }
 
             Item {
                 width: parent.width
-                height: Math.max(30, appScroll.height - profileTitle.implicitHeight - profileHero.height - profileSettingsRow.implicitHeight - profileHelpRow.implicitHeight - versionLabel.implicitHeight - profileRoot.spacing * 5 - 24)
+                height: 6
+            }
+
+            Rectangle {
+                id: profileAskButton
+
+                width: Math.min(parent.width * 0.52, 224)
+                height: 40
+                anchors.horizontalCenter: parent.horizontalCenter
+                radius: 24
+                color: Qt.rgba(1, 1, 1, 0.13)
+                border.color: Qt.rgba(1, 1, 1, 0.07)
+                border.width: 1
+
+                Row {
+                    anchors.centerIn: parent
+                    spacing: 8
+
+                    Image {
+                        width: 18
+                        height: 18
+                        anchors.verticalCenter: parent.verticalCenter
+                        source: "qrc:/images/controls/help-circle.svg"
+                        opacity: 0.9
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Задать вопрос"
+                        color: "#F7FBFF"
+                        font.family: "sans-serif-medium"
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                    }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: root.openAccountUrl("/account/support?topic=app&context=android")
+                }
+            }
+
+            Item {
+                id: profileFooterSpacer
+
+                width: parent.width
+                height: Math.max(24, Math.min(190, profileActionsSpacer.profileFreeSpace - profileActionsSpacer.height - 18))
             }
 
             Text {
@@ -1337,6 +1818,16 @@ PageType {
                 font.pixelSize: 11
                 horizontalAlignment: Text.AlignHCenter
             }
+
+            Text {
+                id: copyrightLabel
+
+                width: parent.width
+                text: "© 2026 LoxleyVPN"
+                color: "#6F8174"
+                font.pixelSize: 10
+                horizontalAlignment: Text.AlignHCenter
+            }
         }
     }
 
@@ -1344,38 +1835,118 @@ PageType {
         id: settingsScreen
 
         Column {
-            width: parent.width
-            spacing: 18
+            id: settingsRoot
 
-            ScreenHeader {
+            width: parent.width
+            spacing: 14
+
+            Row {
+                id: settingsHeader
+
                 width: parent.width
-                title: "Настройки"
-                subtitle: "Короткие параметры приложения."
+                height: 34
+                spacing: 10
+
+                Rectangle {
+                    width: 30
+                    height: 30
+                    radius: 11
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: settingsBackTap.pressed ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.07)
+                    border.color: Qt.rgba(1, 1, 1, 0.08)
+                    border.width: 1
+
+                    Image {
+                        id: settingsBackIcon
+
+                        width: 16
+                        height: 16
+                        anchors.centerIn: parent
+                        source: "qrc:/images/controls/arrow-left.svg"
+                        visible: false
+                    }
+
+                    ColorOverlay {
+                        anchors.fill: settingsBackIcon
+                        source: settingsBackIcon
+                        color: "#EAF5ED"
+                        opacity: 0.9
+                    }
+
+                    MouseArea {
+                        id: settingsBackTap
+                        anchors.fill: parent
+                        onClicked: root.currentTab = root.tabProfile
+                    }
+                }
+
+                Text {
+                    width: parent.width - 40
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Настройки"
+                    color: "#F7FBFF"
+                    font.family: "sans-serif-medium"
+                    font.pixelSize: 18
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                    maximumLineCount: 1
+                }
             }
 
             Rectangle {
+                id: settingsBypassCard
+
                 width: parent.width
                 radius: 20
-                color: root.glassFill
-                border.color: Qt.rgba(1, 1, 1, 0.06)
+                color: root.glassFillStrong
+                border.color: Qt.rgba(1, 1, 1, 0.075)
                 border.width: 1
-                implicitHeight: bypassRow.implicitHeight + 28
+                implicitHeight: bypassRow.implicitHeight + 24
 
                 Row {
                     id: bypassRow
-                    width: parent.width - 28
+                    width: parent.width - 24
                     anchors.centerIn: parent
-                    spacing: 14
+                    spacing: 10
+
+                    Rectangle {
+                        width: 34
+                        height: 34
+                        radius: 13
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: Qt.rgba(0.72, 0.95, 0.42, 0.10)
+                        border.color: Qt.rgba(0.78, 0.98, 0.62, 0.20)
+                        border.width: 1
+
+                        Image {
+                            id: bypassIcon
+
+                            width: 16
+                            height: 16
+                            anchors.centerIn: parent
+                            source: "qrc:/images/controls/settings-2.svg"
+                            visible: false
+                        }
+
+                        ColorOverlay {
+                            anchors.fill: bypassIcon
+                            source: bypassIcon
+                            color: "#DCEED2"
+                            opacity: 0.95
+                        }
+                    }
 
                     Column {
-                        width: parent.width - 72
-                        spacing: 5
+                        width: parent.width - 34 - 56 - 28
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 4
 
                         Text {
                             width: parent.width
                             text: "Открывать российские сервисы без VPN"
                             color: "#F3FFF7"
-                            font.pixelSize: 15
+                            font.family: "sans-serif-medium"
+                            font.pixelSize: 14
                             font.weight: Font.DemiBold
                             wrapMode: Text.WordWrap
                         }
@@ -1384,7 +1955,7 @@ PageType {
                             width: parent.width
                             text: "Банки, госуслуги и маркетплейсы будут открываться напрямую, если функция включена."
                             color: "#93A79D"
-                            font.pixelSize: 12
+                            font.pixelSize: 11
                             lineHeight: 1.15
                             wrapMode: Text.WordWrap
                         }
@@ -1392,16 +1963,56 @@ PageType {
 
                     MiniToggle {
                         checked: root.russianBypass
+                        anchors.verticalCenter: parent.verticalCenter
                         onClicked: root.setRussianBypass(!root.russianBypass)
                     }
                 }
             }
 
-            LoxleyButton {
+            Item {
+                id: settingsBackSpacer
+
+                readonly property real settingsFreeSpace: Math.max(120, appScroll.height - settingsHeader.height - settingsBypassCard.implicitHeight - settingsBackButton.height - settingsVersionLabel.implicitHeight - settingsCopyrightLabel.implicitHeight - settingsRoot.spacing * 6 - 24)
+
                 width: parent.width
+                height: Math.max(74, Math.min(210, settingsFreeSpace * 0.68))
+            }
+
+            LoxleyButton {
+                id: settingsBackButton
+
+                width: Math.min(parent.width * 0.52, 210)
+                height: 40
+                anchors.horizontalCenter: parent.horizontalCenter
                 text: "Назад в профиль"
                 secondary: true
+                labelPixelSize: 13
                 onClicked: root.currentTab = root.tabProfile
+            }
+
+            Item {
+                width: parent.width
+                height: Math.max(10, Math.min(90, settingsBackSpacer.settingsFreeSpace - settingsBackSpacer.height - 16))
+            }
+
+            Text {
+                id: settingsVersionLabel
+
+                width: parent.width
+                text: "v0.1"
+                color: "#6F8174"
+                font.pixelSize: 11
+                horizontalAlignment: Text.AlignHCenter
+            }
+
+            Text {
+                id: settingsCopyrightLabel
+
+                width: parent.width
+                text: "© 2026 LoxleyVPN"
+                color: "#6F8174"
+                font.pixelSize: 10
+                horizontalAlignment: Text.AlignHCenter
             }
         }
     }
@@ -1411,6 +2022,7 @@ PageType {
         if (trimmedEmail.length === 0 || !root.isValidEmail(trimmedEmail)) {
             root.emailError = true
             root.statusText = ""
+            root.showToast("Введите корректный email", true)
             emailInput.focusInput()
             emailShakeAnimation.restart()
             return
@@ -1458,6 +2070,7 @@ PageType {
         codeErrorClearTimer.stop()
         codeErrorResetTimer.stop()
         root.statusText = message || "Код неверный или устарел"
+        root.showToast(root.statusText, true)
         root.codeError = true
         root.codeErrorCleared = false
         codeShakeAnimation.restart()
@@ -1589,6 +2202,39 @@ PageType {
         return result
     }
 
+    function serverLatencyMs(server) {
+        var value = server && server.latency ? String(server.latency) : ""
+        var match = value.match(/\d+/)
+        if (match && match.length > 0) {
+            return parseInt(match[0], 10)
+        }
+        return 999999
+    }
+
+    function recommendedServer() {
+        var servers = root.currentServers()
+        if (!servers || servers.length === 0) {
+            return {}
+        }
+
+        var best = servers[0]
+        var bestScore = 9999999
+        for (var i = 0; i < servers.length; i++) {
+            var server = servers[i]
+            if (!server || !server.id) {
+                continue
+            }
+            var reservePenalty = (server.status === "reserve" || server.protocol === "xray_vless_reality") ? 500000 : 0
+            var qualityPenalty = (3 - root.qualityForStatus(server.status)) * 10000
+            var score = reservePenalty + qualityPenalty + root.serverLatencyMs(server)
+            if (score < bestScore) {
+                bestScore = score
+                best = server
+            }
+        }
+        return best || {}
+    }
+
     function selectedServer() {
         var servers = root.currentServers()
         if (!servers || servers.length === 0) {
@@ -1603,20 +2249,49 @@ PageType {
         if (!server || !server.id) {
             return "Нет выбранного сервера"
         }
-        return server.country || server.city || "Локация"
+        return root.serverDisplayTitle(server)
     }
 
     function serverDisplayTitle(server) {
         if (!server || !server.id) {
             return "Выберите локацию"
         }
-        if (server.country && server.country.length > 0) {
-            return server.country
+        var country = root.localizedCountryName(server)
+        if (country.length > 0) {
+            return country
         }
         if (server.title && server.title.length > 0) {
             return server.title
         }
         return "Локация"
+    }
+
+    function localizedCountryName(server) {
+        if (!server) {
+            return ""
+        }
+        var raw = (server.country && server.country.length > 0 ? server.country : server.title || "").trim()
+        var code = raw.toUpperCase()
+        var id = (server.id || "").toLowerCase()
+        var city = (server.city || "").toLowerCase()
+        var text = raw.toLowerCase()
+
+        if (code === "NL" || id.indexOf("nl") === 0 || text.indexOf("нидер") !== -1 || text.indexOf("nether") !== -1) {
+            return "Нидерланды"
+        }
+        if (code === "DE" || id.indexOf("de") === 0 || text.indexOf("герм") !== -1 || text.indexOf("german") !== -1 || city.indexOf("berlin") !== -1) {
+            return "Германия"
+        }
+        if (code === "RU" || id.indexOf("ru") === 0 || text.indexOf("рос") !== -1 || text.indexOf("russia") !== -1) {
+            return "Россия"
+        }
+        if (code === "KZ" || id.indexOf("kz") === 0 || text.indexOf("каз") !== -1 || text.indexOf("kazakh") !== -1) {
+            return "Казахстан"
+        }
+        if (code === "UA" || id.indexOf("ua") === 0 || text.indexOf("укра") !== -1 || text.indexOf("ukraine") !== -1) {
+            return "Украина"
+        }
+        return raw
     }
 
     function serverById(serverId) {
@@ -1670,6 +2345,30 @@ PageType {
         if (country.indexOf("герман") !== -1 || country.indexOf("german") !== -1 || serverId.indexOf("de") === 0) {
             return "DE"
         }
+        if (country.indexOf("лит") !== -1 || country.indexOf("lithuan") !== -1 || serverId.indexOf("lt") === 0) {
+            return "LT"
+        }
+        if (country.indexOf("поль") !== -1 || country.indexOf("poland") !== -1 || serverId.indexOf("pl") === 0) {
+            return "PL"
+        }
+        if (country.indexOf("фин") !== -1 || country.indexOf("finland") !== -1 || serverId.indexOf("fi") === 0) {
+            return "FI"
+        }
+        if (country.indexOf("швец") !== -1 || country.indexOf("sweden") !== -1 || serverId.indexOf("se") === 0) {
+            return "SE"
+        }
+        if (country.indexOf("дани") !== -1 || country.indexOf("denmark") !== -1 || serverId.indexOf("dk") === 0) {
+            return "DK"
+        }
+        if (country.indexOf("норв") !== -1 || country.indexOf("norway") !== -1 || serverId.indexOf("no") === 0) {
+            return "NO"
+        }
+        if (country.indexOf("исп") !== -1 || country.indexOf("spain") !== -1 || serverId.indexOf("es") === 0) {
+            return "ES"
+        }
+        if (country.indexOf("фран") !== -1 || country.indexOf("france") !== -1 || serverId.indexOf("fr") === 0) {
+            return "FR"
+        }
         if (country.indexOf("европа") !== -1 || country.indexOf("europe") !== -1 || city.indexOf("vless") !== -1) {
             return "EU"
         }
@@ -1703,6 +2402,56 @@ PageType {
             return prefix + "подписка активна" + deviceText
         }
         return prefix + status
+    }
+
+    function profileEmail() {
+        var user = AppApiController.user || {}
+        if (user.email && user.email.length > 0) {
+            return user.email
+        }
+        if (root.pendingEmail && root.pendingEmail.length > 0) {
+            return root.pendingEmail
+        }
+        if (root.emailText && root.emailText.length > 0) {
+            return root.emailText
+        }
+        return "Профиль"
+    }
+
+    function profileAccessTitle() {
+        if (!AppApiController.user) {
+            return "Проверяем подписку"
+        }
+        if (root.appUserCanConnect()) {
+            return "Подписка активна"
+        }
+        return "У вас нет активной подписки"
+    }
+
+    function profileDeviceText() {
+        if (!AppApiController.authenticated || !AppApiController.user) {
+            return ""
+        }
+        var user = AppApiController.user || {}
+        if (user.devices_used === undefined || user.device_limit === undefined) {
+            return ""
+        }
+        return "Устройства " + user.devices_used + "/" + user.device_limit
+    }
+
+    function profileAccessSubtitle() {
+        var user = AppApiController.user || {}
+        var deviceText = ""
+        if (user.devices_used !== undefined && user.device_limit !== undefined) {
+            deviceText = "Устройства: " + user.devices_used + "/" + user.device_limit
+        }
+        if (root.appUserCanConnect()) {
+            if (user.expires_at && user.expires_at.length > 0) {
+                return "Доступ активен до " + root.shortDate(user.expires_at) + (deviceText.length > 0 ? "\n" + deviceText : "")
+            }
+            return deviceText.length > 0 ? deviceText : "Можно подключаться к VPN."
+        }
+        return "Оформите доступ на сайте LoxleyVPN или в Telegram-боте."
     }
 
     function shortDate(value) {
@@ -1743,7 +2492,53 @@ PageType {
         return "VPN"
     }
 
+    function beginVpnAction(message) {
+        root.vpnActionText = message || "Подключаем VPN"
+        root.vpnActionPending = true
+        root.vpnObservedConnectionProgress = false
+        root.statusText = root.vpnActionText
+        vpnPendingFallbackTimer.restart()
+    }
+
+    function finishVpnAction() {
+        root.vpnActionPending = false
+        root.vpnObservedConnectionProgress = false
+        root.vpnActionText = ""
+        vpnPendingFallbackTimer.stop()
+    }
+
+    function runVpnActionAfterPaint(action) {
+        root.pendingVpnAction = action
+        vpnActionStartTimer.restart()
+    }
+
+    function openAccountUrl(path) {
+        AppApiController.openAccountPath(path || "/account")
+    }
+
+    function logoutProfile() {
+        root.profileMenuOpen = false
+        root.guestMode = false
+        root.resetAuthForm()
+        root.statusText = ""
+        AppApiController.clearSession()
+    }
+
+    function deleteProfileRequested() {
+        root.profileMenuOpen = false
+        deleteProfileConfirmPopup.open()
+    }
+
+    function confirmDeleteProfile() {
+        root.showToast("Удалить профиль можно в личном кабинете")
+        root.openAccountUrl("/account/profile")
+    }
+
     function toggleSelectedServer() {
+        if (root.vpnActionPending && !ConnectionController.isConnected) {
+            return
+        }
+
         if (!AppApiController.authenticated) {
             root.requireAuth()
             return
@@ -1755,8 +2550,10 @@ PageType {
         }
 
         if (ConnectionController.isConnected || ConnectionController.isConnectionInProgress) {
-            root.statusText = "Отключаем VPN"
-            ConnectionController.closeConnection()
+            root.beginVpnAction("Отключаем защиту")
+            root.runVpnActionAfterPaint(function() {
+                ConnectionController.closeConnection()
+            })
             return
         }
 
@@ -1776,19 +2573,23 @@ PageType {
 
         var server = root.selectedServer()
         if (!server || !server.id) {
+            root.finishVpnAction()
             root.showToast("Выберите локацию")
             return
         }
 
         if (server.status === "reserve" || server.protocol === "xray_vless_reality") {
+            root.finishVpnAction()
             root.statusText = "Резервный протокол пока не включён"
             root.showToast(root.statusText)
             return
         }
 
-        root.statusText = "Получаем конфигурацию"
-        root.configureRussianBypass()
-        AppApiController.fetchConfig(server.id)
+        root.beginVpnAction("Запускаем защиту")
+        root.runVpnActionAfterPaint(function() {
+            root.configureRussianBypass()
+            AppApiController.fetchConfig(server.id)
+        })
     }
 
     function setRussianBypass(enabled) {
@@ -1805,23 +2606,28 @@ PageType {
 
     function importAndConnectConfig(configText, serverTitle) {
         if (!configText || configText.length === 0) {
+            root.finishVpnAction()
             root.statusText = "Пустая конфигурация"
             root.showToast(root.statusText)
             return
         }
 
         if (!ImportController.extractConfigFromData(configText)) {
+            root.finishVpnAction()
             root.statusText = "Ошибка импорта конфигурации"
             root.showToast(root.statusText)
             return
         }
-        ImportController.importConfig()
-        root.statusText = "Подключаем VPN"
-        Qt.callLater(ConnectionController.openConnection)
+        root.beginVpnAction("Подключаем VPN")
+        root.runVpnActionAfterPaint(function() {
+            ImportController.importConfig()
+            ConnectionController.openConnection()
+        })
     }
 
-    function showToast(message) {
+    function showToast(message, isError) {
         root.toastText = message || ""
+        root.toastIsError = isError === true
         toastTimer.restart()
     }
 
@@ -1845,9 +2651,10 @@ PageType {
 
         property bool connected: false
         property bool busy: false
+        property string busyText: ""
         signal clicked()
 
-        height: 82
+        height: 74
         radius: height / 2
         color: "transparent"
         border.color: connected ? Qt.rgba(0.75, 1, 0.54, 0.62) : Qt.rgba(1, 1, 1, 0.12)
@@ -1856,8 +2663,8 @@ PageType {
         Rectangle {
             id: toggleGlow
             anchors.centerIn: parent
-            width: parent.width + 18
-            height: parent.height + 18
+            width: parent.width + 14
+            height: parent.height + 14
             radius: height / 2
             color: vpnToggleRoot.connected ? Qt.rgba(0.54, 0.94, 0.45, 0.22) : Qt.rgba(1, 1, 1, 0.04)
             opacity: vpnToggleRoot.busy ? 0.74 : (vpnToggleRoot.connected ? 0.48 : 0.2)
@@ -1915,11 +2722,11 @@ PageType {
 
         Rectangle {
             id: toggleThumb
-            width: 66
-            height: 66
-            radius: 33
+            width: 60
+            height: 60
+            radius: 30
             anchors.verticalCenter: parent.verticalCenter
-            x: vpnToggleRoot.connected ? vpnToggleRoot.width - width - 8 : 8
+            x: vpnToggleRoot.connected ? vpnToggleRoot.width - width - 7 : 7
             scale: vpnToggleRoot.busy ? 0.94 : 1
             gradient: Gradient {
                 GradientStop {
@@ -1948,12 +2755,21 @@ PageType {
                 }
             }
 
-            PowerGlyph {
-                width: 31
-                height: 31
+            Image {
+                id: vpnPowerIcon
+
+                width: 27
+                height: 27
                 anchors.centerIn: parent
+                source: "qrc:/images/controls/power.svg"
+                visible: false
+                smooth: true
+            }
+
+            ColorOverlay {
+                anchors.fill: vpnPowerIcon
+                source: vpnPowerIcon
                 color: vpnToggleRoot.connected ? "#183318" : "#27302B"
-                strokeWidth: 3
             }
         }
 
@@ -1961,12 +2777,12 @@ PageType {
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: vpnToggleRoot.connected ? parent.left : toggleThumb.right
             anchors.right: vpnToggleRoot.connected ? toggleThumb.left : parent.right
-            anchors.leftMargin: vpnToggleRoot.connected ? 24 : 18
-            anchors.rightMargin: vpnToggleRoot.connected ? 18 : 24
-            text: vpnToggleRoot.busy ? "Запускаем защиту" : (vpnToggleRoot.connected ? "Защита включена" : "Включить защиту")
+            anchors.leftMargin: vpnToggleRoot.connected ? 22 : 16
+            anchors.rightMargin: vpnToggleRoot.connected ? 16 : 22
+            text: vpnToggleRoot.busy ? (vpnToggleRoot.busyText.length > 0 ? vpnToggleRoot.busyText : "Запускаем защиту") : (vpnToggleRoot.connected ? "Защита включена" : "Включить защиту")
             color: vpnToggleRoot.connected ? "#10210E" : "#F3FFF7"
             font.family: "sans-serif-medium"
-            font.pixelSize: 17
+            font.pixelSize: 16
             font.weight: Font.DemiBold
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
@@ -1980,7 +2796,7 @@ PageType {
 
         MouseArea {
             anchors.fill: parent
-            onClicked: vpnToggleRoot.clicked()
+            onPressed: vpnToggleRoot.clicked()
         }
     }
 
@@ -2022,42 +2838,6 @@ PageType {
         MouseArea {
             anchors.fill: parent
             onClicked: miniToggleRoot.clicked()
-        }
-    }
-
-    component PowerGlyph: Canvas {
-        id: powerGlyphRoot
-
-        property color color: "#F7FBFF"
-        property real strokeWidth: 3
-
-        onColorChanged: requestPaint()
-        onStrokeWidthChanged: requestPaint()
-        onWidthChanged: requestPaint()
-        onHeightChanged: requestPaint()
-
-        onPaint: {
-            var ctx = getContext("2d")
-            ctx.clearRect(0, 0, width, height)
-
-            var size = Math.min(width, height)
-            var centerX = width / 2
-            var centerY = height / 2 + size * 0.06
-            var radius = size * 0.31
-
-            ctx.strokeStyle = powerGlyphRoot.color
-            ctx.lineWidth = powerGlyphRoot.strokeWidth
-            ctx.lineCap = "round"
-            ctx.lineJoin = "round"
-
-            ctx.beginPath()
-            ctx.arc(centerX, centerY, radius, Math.PI * -0.25, Math.PI * 1.25)
-            ctx.stroke()
-
-            ctx.beginPath()
-            ctx.moveTo(centerX, size * 0.12)
-            ctx.lineTo(centerX, centerY - radius * 0.28)
-            ctx.stroke()
         }
     }
 
@@ -2471,12 +3251,14 @@ PageType {
         color: "transparent"
 
         Column {
-            anchors.centerIn: parent
-            spacing: 2
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Qt.platform.os === "android" ? 4 : 8
+            spacing: 1
 
             Item {
-                width: 23
-                height: 23
+                width: 22
+                height: 22
                 anchors.horizontalCenter: parent.horizontalCenter
 
                 Image {
@@ -2499,7 +3281,7 @@ PageType {
             Text {
                 text: navRoot.label
                 color: navRoot.active ? "#F3FFF7" : "#91A095"
-                font.pixelSize: 14
+                font.pixelSize: 13
                 font.weight: navRoot.active ? Font.DemiBold : Font.Normal
             }
         }
@@ -2515,7 +3297,7 @@ PageType {
 
         property int quality: 2
 
-        spacing: 3
+        spacing: 2
         layoutDirection: Qt.LeftToRight
 
         Repeater {
@@ -2524,8 +3306,8 @@ PageType {
             Rectangle {
                 required property int index
 
-                width: 6
-                height: 10 + index * 5
+                width: 5
+                height: 8 + index * 4
                 radius: 3
                 y: barsRoot.height - height
                 color: index < barsRoot.quality ? root.loxleyAccent : "#4E5F53"
@@ -2533,19 +3315,142 @@ PageType {
         }
     }
 
+    component LightningIcon: Item {
+        id: lightningRoot
+
+        Canvas {
+            anchors.fill: parent
+            antialiasing: true
+            onWidthChanged: requestPaint()
+            onHeightChanged: requestPaint()
+
+            onPaint: {
+                var ctx = getContext("2d")
+                ctx.clearRect(0, 0, width, height)
+                ctx.strokeStyle = root.loxleyAccent
+                ctx.lineWidth = 1.55
+                ctx.lineJoin = "round"
+                ctx.lineCap = "round"
+                ctx.beginPath()
+                ctx.moveTo(width * 0.58, height * 0.08)
+                ctx.lineTo(width * 0.23, height * 0.52)
+                ctx.lineTo(width * 0.48, height * 0.52)
+                ctx.lineTo(width * 0.34, height * 0.92)
+                ctx.lineTo(width * 0.78, height * 0.40)
+                ctx.lineTo(width * 0.53, height * 0.40)
+                ctx.lineTo(width * 0.58, height * 0.08)
+                ctx.stroke()
+            }
+
+            Component.onCompleted: requestPaint()
+        }
+    }
+
+    component RecommendedServerCard: Rectangle {
+        id: recommendedRoot
+
+        property var server: ({})
+        property bool compact: false
+        signal clicked()
+
+        height: compact ? 44 : 48
+        radius: compact ? 18 : 20
+        color: Qt.rgba(1, 1, 1, 0.082)
+        border.color: Qt.rgba(0.78, 0.98, 0.62, 0.18)
+        border.width: 1
+        opacity: recommendedTap.pressed ? 0.82 : 1
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: parent.radius - 1
+            color: "transparent"
+            border.color: Qt.rgba(1, 1, 1, 0.075)
+            border.width: 1
+        }
+
+        Row {
+            width: parent.width - 24
+            anchors.centerIn: parent
+            spacing: compact ? 9 : 11
+
+            Rectangle {
+                width: compact ? 27 : 30
+                height: width
+                radius: width / 2
+                anchors.verticalCenter: parent.verticalCenter
+                color: Qt.rgba(0.75, 1.0, 0.50, 0.13)
+                border.color: Qt.rgba(0.86, 1.0, 0.68, 0.22)
+                border.width: 1
+
+                Image {
+                    width: compact ? 15 : 16
+                    height: width
+                    anchors.centerIn: parent
+                    source: "qrc:/images/controls/lightning.svg"
+                    smooth: true
+                    mipmap: true
+                }
+            }
+
+            Text {
+                width: parent.width - 30 - recommendBadge.width - parent.spacing * 2
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.serverDisplayTitle(recommendedRoot.server)
+                color: "#F7FBFF"
+                font.family: "sans-serif-medium"
+                font.pixelSize: compact ? 15 : 16
+                font.weight: Font.DemiBold
+                elide: Text.ElideRight
+                maximumLineCount: 1
+            }
+
+            Rectangle {
+                id: recommendBadge
+
+                width: Math.max(compact ? 96 : 102, recommendBadgeText.implicitWidth + 24)
+                height: compact ? 27 : 28
+                radius: height / 2
+                anchors.verticalCenter: parent.verticalCenter
+                color: Qt.rgba(0.73, 0.98, 0.47, 0.12)
+                border.color: Qt.rgba(0.84, 1.0, 0.66, 0.20)
+                border.width: 1
+
+                Text {
+                    id: recommendBadgeText
+
+                    anchors.centerIn: parent
+                    text: "Рекомендуем"
+                    color: "#D7F2CA"
+                    font.pixelSize: compact ? 11 : 11
+                    font.weight: Font.Medium
+                    maximumLineCount: 1
+                }
+            }
+        }
+
+        MouseArea {
+            id: recommendedTap
+
+            anchors.fill: parent
+            onClicked: recommendedRoot.clicked()
+        }
+    }
+
     component MenuRow: Rectangle {
         id: menuRoot
 
         property string iconSource: ""
+        property string trailingIconSource: "qrc:/images/controls/chevron-right.svg"
         property string title: ""
         property string subtitle: ""
         signal clicked()
 
-        radius: 22
+        radius: 18
         color: Qt.rgba(1, 1, 1, 0.074)
         border.color: Qt.rgba(1, 1, 1, 0.075)
         border.width: 1
-        implicitHeight: 78
+        implicitHeight: 54
 
         Rectangle {
             anchors.fill: parent
@@ -2558,14 +3463,14 @@ PageType {
 
         Row {
             id: menuContent
-            width: parent.width - 32
+            width: parent.width - 26
             anchors.centerIn: parent
-            spacing: 16
+            spacing: 11
 
             Rectangle {
-                width: 46
-                height: 46
-                radius: 17
+                width: 34
+                height: 34
+                radius: 13
                 color: Qt.rgba(0.72, 0.95, 0.42, 0.10)
                 border.color: Qt.rgba(0.78, 0.98, 0.62, 0.20)
                 border.width: 1
@@ -2573,8 +3478,8 @@ PageType {
                 Image {
                     id: menuIcon
 
-                    width: 21
-                    height: 21
+                    width: 16
+                    height: 16
                     anchors.centerIn: parent
                     source: menuRoot.iconSource
                     visible: false
@@ -2589,16 +3494,16 @@ PageType {
             }
 
             Column {
-                width: parent.width - 98
+                width: parent.width - 76
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 3
+                spacing: 2
 
                 Text {
                     width: parent.width
                     text: menuRoot.title
                     color: "#F7FBFF"
                     font.family: "sans-serif-medium"
-                    font.pixelSize: 20
+                    font.pixelSize: 15
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
@@ -2622,7 +3527,7 @@ PageType {
                     id: menuChevron
 
                     anchors.fill: parent
-                    source: "qrc:/images/controls/chevron-right.svg"
+                    source: menuRoot.trailingIconSource
                     visible: false
                 }
 
@@ -2638,6 +3543,35 @@ PageType {
         MouseArea {
             anchors.fill: parent
             onClicked: menuRoot.clicked()
+        }
+    }
+
+    component ProfileMenuItem: Rectangle {
+        id: profileMenuItemRoot
+
+        property string text: ""
+        property bool danger: false
+        signal clicked()
+
+        color: profileMenuMouseArea.pressed ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+
+        Text {
+            width: parent.width - 28
+            anchors.left: parent.left
+            anchors.leftMargin: 14
+            anchors.verticalCenter: parent.verticalCenter
+            text: profileMenuItemRoot.text
+            color: profileMenuItemRoot.danger ? "#FF7272" : "#F2FFF7"
+            font.pixelSize: 13
+            font.weight: Font.Normal
+            elide: Text.ElideRight
+        }
+
+        MouseArea {
+            id: profileMenuMouseArea
+
+            anchors.fill: parent
+            onClicked: profileMenuItemRoot.clicked()
         }
     }
 }

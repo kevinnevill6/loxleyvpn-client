@@ -40,6 +40,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.graphics.Insets
 import androidx.core.view.OnApplyWindowInsetsListener
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import java.io.IOException
@@ -98,6 +99,8 @@ class AmneziaActivity : QtActivity() {
     private val resumeHandler = Handler(Looper.getMainLooper())
     private var pendingOpenFileUri: String? = null
     private var openFileDeliveryScheduled = false
+    private var lastStableNavBarHeightDp = -1
+    private var lastStableStatusBarHeightDp = -1
 
     private val vpnServiceEventHandler: Handler by lazy(NONE) {
         object : Handler(Looper.getMainLooper()) {
@@ -416,6 +419,13 @@ class AmneziaActivity : QtActivity() {
     }
 
     private fun configureWindowForEdgeToEdge() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.decorView.systemUiVisibility = (
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            )
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             window.apply {
                 addFlags(LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
@@ -459,9 +469,17 @@ class AmneziaActivity : QtActivity() {
             // Also track system bars (navigation bar, status bar) changes
             val systemBarsInsets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
             val navBarHeight = systemBarsInsets.bottom
-            val navBarHeightDp = (navBarHeight / density).toInt()
+            var navBarHeightDp = (navBarHeight / density).toInt()
             val statusBarHeight = systemBarsInsets.top
-            val statusBarHeightDp = (statusBarHeight / density).toInt()
+            var statusBarHeightDp = (statusBarHeight / density).toInt()
+
+            if (!imeVisible && navBarHeightDp == 0 && statusBarHeightDp == 0 && lastStableNavBarHeightDp >= 0 && lastStableStatusBarHeightDp >= 0) {
+                navBarHeightDp = lastStableNavBarHeightDp
+                statusBarHeightDp = lastStableStatusBarHeightDp
+            } else if (navBarHeightDp > 0 || statusBarHeightDp > 0) {
+                lastStableNavBarHeightDp = navBarHeightDp
+                lastStableStatusBarHeightDp = statusBarHeightDp
+            }
 
             mainScope.launch {
                 qtInitialized.await()

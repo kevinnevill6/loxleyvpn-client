@@ -42,6 +42,7 @@ public slots:
     void fetchMe();
     void fetchServers();
     void fetchConfig(const QString &serverId);
+    void openAccountPath(const QString &path);
     void clearSession();
     void useMockMode();
     void setOneTimeCodeAutofillActive(bool active);
@@ -64,6 +65,7 @@ signals:
     void serversFailed(const QString &message);
     void configFetched(const QString &serverId, const QString &protocol, const QString &config, bool fakeConfig);
     void configFailed(const QString &serverId, const QString &message, int statusCode);
+    void accountLinkFailed(const QString &message);
     void oneTimeCodeReceived(const QString &code);
 
 private:
@@ -78,8 +80,12 @@ private:
     void endRequest();
     void setUserFromObject(const QJsonObject &object);
     void setServersFromArray(const QJsonArray &array);
+    QString authFailureMessage(const QByteArray &body) const;
     QString errorMessage(int statusCode, QNetworkReply::NetworkError error, const QString &errorString) const;
     bool isFakeConfig(const QString &config) const;
+    void restoreSession();
+    void saveSession() const;
+    void clearStoredSession() const;
 
     QString m_baseUrl;
     QString m_deviceUuid;
