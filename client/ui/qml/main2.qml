@@ -81,7 +81,7 @@ Window  {
         console.warn("Scene graph error:", error, message)
     }
 
-    title: "LoxleyVPN"
+    title: "GuardoVPN"
 
     Item { // This item is needed for focus handling
         id: defaultFocusItem
@@ -169,7 +169,7 @@ Window  {
     }
 
     PageSetupWizardConfigSource {
-        objectName: "loxleyAppShell"
+        objectName: "guardoAppShell"
         width: root.width
         height: root.height
     }

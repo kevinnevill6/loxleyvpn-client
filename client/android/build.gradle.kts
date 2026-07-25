@@ -34,7 +34,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.loxleyvpn.client"
+        applicationId = "com.guardovpn.client"
         targetSdk = qtTargetSdkVersion.toInt()
 
         // keeps language resources for only the locales specified below

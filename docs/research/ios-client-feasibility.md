@@ -1,8 +1,8 @@
 # iOS Client Feasibility Spike
 
 Date: 2026-06-11
-Repo: `loxleyvpn-client`
-Branch: `codex/loxley-android-poc`
+Repo: `guardovpn-client`
+Branch: `codex/guardo-android-poc`
 
 ## Summary
 
@@ -10,7 +10,7 @@ iOS client is technically feasible from the current Amnezia-based fork, but it i
 
 The first practical milestone should be an iOS PoC, not a TestFlight/App Store release:
 
-1. Build and launch the LoxleyVPN shell on iPhone or simulator without VPN.
+1. Build and launch the GuardoVPN shell on iPhone or simulator without VPN.
 2. Reuse the existing App API email/auth/server/config flow.
 3. Add Apple signing, bundle IDs, App Group, and Network Extension capability.
 4. Then test real AmneziaWG tunnel connect on a physical iPhone.
@@ -41,14 +41,14 @@ Environment:
 - Qt iOS kit: `$HOME/Qt/6.10.3/ios`
 - Additional Qt module required for configure/build: `qtshadertools`
 - Xcode generator build directory: `deploy/build-ios-ui`
-- UI-only bundle ID: `com.loxleyvpn.client.ios.dev`
-- UI-only App Group placeholder: `group.com.loxleyvpn.client.ios.dev`
+- UI-only bundle ID: `com.guardovpn.client.ios.dev`
+- UI-only App Group placeholder: `group.com.guardovpn.client.ios.dev`
 - UI-only deployment target: iOS 17.0, matching the Qt 6.10.3 iOS libraries used by the aqt package
 
 UI-only mode is controlled by:
 
 ```bash
-LOXLEY_IOS_UI_ONLY=ON
+GUARDO_IOS_UI_ONLY=ON
 ```
 
 In UI-only mode, the build excludes the Network Extension embedding path, StoreKit source files, iOS Swift VPN/log/screen-protection helpers, and tunnel-only Conan packages. It keeps the shared QML shell and App API-facing application code available for the first iOS UI proof.
@@ -58,18 +58,18 @@ Configure command used:
 ```bash
 QT_ROOT_PATH="$HOME/Qt/6.10.3" \
 QT_HOST_PATH="$HOME/Qt/6.10.3/macos" \
-LOXLEY_IOS_UI_ONLY=1 \
-LOXLEY_APP_API_BASE_URL="https://staging.loxleyvpn.ru" \
+GUARDO_IOS_UI_ONLY=1 \
+GUARDO_APP_API_BASE_URL="https://staging.guardovpn.com" \
 cmake -S . -B deploy/build-ios-ui \
   -G Xcode \
   -DCMAKE_TOOLCHAIN_FILE="$HOME/Qt/6.10.3/ios/lib/cmake/Qt6/qt.toolchain.cmake" \
   -DCMAKE_SYSTEM_NAME=iOS \
   -DCMAKE_OSX_SYSROOT=iphonesimulator \
   -DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 \
-  -DLOXLEY_IOS_UI_ONLY=ON \
-  -DBUILD_IOS_APP_IDENTIFIER=com.loxleyvpn.client.ios.dev \
-  -DBUILD_IOS_GROUP_IDENTIFIER=group.com.loxleyvpn.client.ios.dev \
-  -DLOXLEY_APP_API_BASE_URL="https://staging.loxleyvpn.ru"
+  -DGUARDO_IOS_UI_ONLY=ON \
+  -DBUILD_IOS_APP_IDENTIFIER=com.guardovpn.client.ios.dev \
+  -DBUILD_IOS_GROUP_IDENTIFIER=group.com.guardovpn.client.ios.dev \
+  -DGUARDO_APP_API_BASE_URL="https://staging.guardovpn.com"
 ```
 
 Build command used:
@@ -77,16 +77,16 @@ Build command used:
 ```bash
 QT_ROOT_PATH="$HOME/Qt/6.10.3" \
 QT_HOST_PATH="$HOME/Qt/6.10.3/macos" \
-LOXLEY_IOS_UI_ONLY=1 \
-LOXLEY_APP_API_BASE_URL="https://staging.loxleyvpn.ru" \
-cmake --build deploy/build-ios-ui --config Debug --target LoxleyVPN
+GUARDO_IOS_UI_ONLY=1 \
+GUARDO_APP_API_BASE_URL="https://staging.guardovpn.com" \
+cmake --build deploy/build-ios-ui --config Debug --target GuardoVPN
 ```
 
 Result:
 
 - CMake configure: passed.
 - iOS UI-only app build: passed.
-- Build artifact: `deploy/build-ios-ui/client/Debug-iphonesimulator/LoxleyVPN.app`
+- Build artifact: `deploy/build-ios-ui/client/Debug-iphonesimulator/GuardoVPN.app`
 - Network Extension target: not embedded for UI-only.
 - Real VPN tunnel: not enabled or tested.
 - TestFlight/App Store: not used.
@@ -94,9 +94,9 @@ Result:
 Physical iPhone result:
 
 - Debug device build: passed with local Apple Development signing.
-- Device bundle ID: `com.loxleyvpn.client.ios.dev`
+- Device bundle ID: `com.guardovpn.client.ios.dev`
 - Installed and launched on the paired iPhone.
-- LoxleyVPN login UI is visible.
+- GuardoVPN login UI is visible.
 - Network Extension/VPN tunnel is not embedded or enabled in this UI-only run.
 - Full-screen rendering on iPhone required:
   - `UIRequiresFullScreen=true` in the app plist;
@@ -183,13 +183,13 @@ The script expects:
 - iPhoneOS SDK by default
 - signing/provisioning to be valid for the app and extension
 
-For LoxleyVPN, the build should eventually pass explicit identifiers instead of upstream defaults:
+For GuardoVPN, the build should eventually pass explicit identifiers instead of upstream defaults:
 
 ```bash
 QT_ROOT_PATH="$HOME/Qt/6.10.3" \
-LOXLEY_APP_API_BASE_URL="https://staging.loxleyvpn.ru" \
-BUILD_IOS_APP_IDENTIFIER="com.loxleyvpn.client.ios" \
-BUILD_IOS_GROUP_IDENTIFIER="group.com.loxleyvpn.client.ios" \
+GUARDO_APP_API_BASE_URL="https://staging.guardovpn.com" \
+BUILD_IOS_APP_IDENTIFIER="com.guardovpn.client.ios" \
+BUILD_IOS_GROUP_IDENTIFIER="group.com.guardovpn.client.ios" \
 BUILD_VPN_DEVELOPMENT_TEAM="<apple-team-id>" \
 CMAKE_BUILD_TYPE=Debug \
 deploy/build.sh -t ios
@@ -199,14 +199,14 @@ Do not run this as the next command yet. The Qt iOS kit is installed, but Apple 
 
 ## Apple Requirements
 
-For local iPhone testing with a VPN extension, LoxleyVPN needs:
+For local iPhone testing with a VPN extension, GuardoVPN needs:
 
 - Apple Developer account access.
 - A development certificate.
 - The physical iPhone registered in the developer account.
-- Main App ID, for example `com.loxleyvpn.client.ios`.
-- Extension App ID, for example `com.loxleyvpn.client.ios.network-extension`.
-- App Group, for example `group.com.loxleyvpn.client.ios`.
+- Main App ID, for example `com.guardovpn.client.ios`.
+- Extension App ID, for example `com.guardovpn.client.ios.network-extension`.
+- App Group, for example `group.com.guardovpn.client.ios`.
 - Network Extension capability enabled with `packet-tunnel-provider`.
 - Provisioning profiles for both the app and the extension.
 
@@ -231,7 +231,7 @@ But they still use upstream identifiers:
 - upstream development team in CMake defaults;
 - upstream launch/storyboard/document type names.
 
-Before the first real iPhone VPN test, replace these with LoxleyVPN identifiers through CMake variables and, where the plist/entitlement files contain literal values, through code changes.
+Before the first real iPhone VPN test, replace these with GuardoVPN identifiers through CMake variables and, where the plist/entitlement files contain literal values, through code changes.
 
 Needed capabilities:
 
@@ -245,20 +245,20 @@ The main app and the extension must share compatible App Group and keychain sett
 
 Reusable as-is or with small adjustments:
 
-- QML LoxleyVPN shell: `client/ui/qml/Pages2/PageSetupWizardConfigSource.qml`
+- QML GuardoVPN shell: `client/ui/qml/Pages2/PageSetupWizardConfigSource.qml`
 - App API controller: `client/ui/controllers/appApiUiController.cpp`
 - Email auth flow
 - `/me`, `/servers`, `/config` flow
 - Device identity concept, although iOS device UUID storage should be verified
 - Import pipeline: `ImportController.extractConfigFromData()` and `ImportController.importConfig()`
 - Connection entrypoint: `ConnectionController.openConnection()`
-- App API base URL build override: `LOXLEY_APP_API_BASE_URL`
+- App API base URL build override: `GUARDO_APP_API_BASE_URL`
 
 Requires verification on iOS:
 
 - Whether the Android-tested AmneziaWG config import shape becomes `Proto::Awg` or `Proto::WireGuard` in the iOS path.
 - Whether `ios_controller.mm` receives all obfuscation fields required by AmneziaWG.
-- Whether the current Loxley QML shell fits iPhone safe areas and keyboard behavior.
+- Whether the current Guardo QML shell fits iPhone safe areas and keyboard behavior.
 - Whether split tunneling for Russian services maps correctly to iOS `excludeIPs` / provider configuration.
 
 ## Important Security Cleanup Before iOS VPN Test
@@ -276,7 +276,7 @@ Do this before any real staging config is passed into iOS logs.
 Recommended separate branch:
 
 ```bash
-git checkout -b codex/loxley-ios-poc
+git checkout -b codex/guardo-ios-poc
 ```
 
 Do not continue iOS work directly on the Android beta branch once code changes start.
@@ -289,11 +289,11 @@ Do not continue iOS work directly on the Android beta branch once code changes s
 4. Create or download development signing certificate.
 5. Register test iPhone UDID.
 
-### Phase 2: Loxley Identifiers
+### Phase 2: Guardo Identifiers
 
-1. Main bundle ID: `com.loxleyvpn.client.ios`.
-2. Extension bundle ID: `com.loxleyvpn.client.ios.network-extension`.
-3. App Group: `group.com.loxleyvpn.client.ios`.
+1. Main bundle ID: `com.guardovpn.client.ios`.
+2. Extension bundle ID: `com.guardovpn.client.ios.network-extension`.
+3. App Group: `group.com.guardovpn.client.ios`.
 4. Enable Network Extension / packet tunnel capability.
 5. Enable App Groups.
 6. Generate development provisioning profiles for both targets.
@@ -307,13 +307,13 @@ Goal: launch the app shell before touching real VPN.
 3. Next run attempt should use a physical iPhone after development signing is configured.
 4. Verify:
    - app opens;
-   - LoxleyVPN splash/login/home/locations/profile render;
+   - GuardoVPN splash/login/home/locations/profile render;
    - no old Amnezia shell is visible;
    - keyboard/safe areas are acceptable.
 
 ### Phase 4: App API
 
-1. Set default backend to staging with `LOXLEY_APP_API_BASE_URL`.
+1. Set default backend to staging with `GUARDO_APP_API_BASE_URL`.
 2. Test email auth.
 3. Test `/me`.
 4. Test `/servers`.

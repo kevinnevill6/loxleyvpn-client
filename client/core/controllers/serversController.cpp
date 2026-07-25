@@ -7,7 +7,7 @@
 
 #include "core/models/serverDescription.h"
 
-#if (defined(Q_OS_IOS) && !defined(LOXLEY_IOS_UI_ONLY)) || defined(MACOS_NE)
+#if (defined(Q_OS_IOS) && !defined(GUARDO_IOS_UI_ONLY)) || defined(MACOS_NE)
     #include <AmneziaVPN-Swift.h>
 #endif
 

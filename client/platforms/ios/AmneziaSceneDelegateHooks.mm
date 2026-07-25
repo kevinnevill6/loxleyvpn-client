@@ -13,19 +13,19 @@ using SceneWillConnectToSession = void (*)(id, SEL, UIScene *, UISceneSession *,
 
 static SceneOpenURLContexts g_originalSceneOpenURLContexts = nullptr;
 static SceneWillConnectToSession g_originalSceneWillConnectToSession = nullptr;
-static UIResponder *g_loxleyFirstResponder = nil;
-static bool g_loxleyOneTimeCodeAutofillActive = false;
-using LoxleyOneTimeCodeHandler = void (*)(const char *code);
-static LoxleyOneTimeCodeHandler g_loxleyOneTimeCodeHandler = nullptr;
+static UIResponder *g_guardoFirstResponder = nil;
+static bool g_guardoOneTimeCodeAutofillActive = false;
+using GuardoOneTimeCodeHandler = void (*)(const char *code);
+static GuardoOneTimeCodeHandler g_guardoOneTimeCodeHandler = nullptr;
 
-@interface LoxleyOneTimeCodeInputTarget : NSObject <UITextFieldDelegate>
+@interface GuardoOneTimeCodeInputTarget : NSObject <UITextFieldDelegate>
 - (void)textDidChange:(UITextField *)field;
 @end
 
-static UITextField *g_loxleyOneTimeCodeField = nil;
-static LoxleyOneTimeCodeInputTarget *g_loxleyOneTimeCodeTarget = nil;
+static UITextField *g_guardoOneTimeCodeField = nil;
+static GuardoOneTimeCodeInputTarget *g_guardoOneTimeCodeTarget = nil;
 
-static NSString *loxley_digitsOnly(NSString *value)
+static NSString *guardo_digitsOnly(NSString *value)
 {
     NSMutableString *digits = [NSMutableString string];
     NSCharacterSet *decimalDigits = [NSCharacterSet decimalDigitCharacterSet];
@@ -38,17 +38,17 @@ static NSString *loxley_digitsOnly(NSString *value)
     return digits;
 }
 
-@implementation LoxleyOneTimeCodeInputTarget
+@implementation GuardoOneTimeCodeInputTarget
 
 - (void)textDidChange:(UITextField *)field
 {
-    NSString *digits = loxley_digitsOnly(field.text ?: @"");
+    NSString *digits = guardo_digitsOnly(field.text ?: @"");
     if (![field.text isEqualToString:digits]) {
         field.text = digits;
     }
 
-    if (digits.length > 0 && g_loxleyOneTimeCodeHandler) {
-        g_loxleyOneTimeCodeHandler(digits.UTF8String);
+    if (digits.length > 0 && g_guardoOneTimeCodeHandler) {
+        g_guardoOneTimeCodeHandler(digits.UTF8String);
     }
 }
 
@@ -56,11 +56,11 @@ static NSString *loxley_digitsOnly(NSString *value)
 {
     NSString *current = textField.text ?: @"";
     NSString *candidate = [current stringByReplacingCharactersInRange:range withString:string ?: @""];
-    NSString *digits = loxley_digitsOnly(candidate);
+    NSString *digits = guardo_digitsOnly(candidate);
     textField.text = digits;
 
-    if (digits.length > 0 && g_loxleyOneTimeCodeHandler) {
-        g_loxleyOneTimeCodeHandler(digits.UTF8String);
+    if (digits.length > 0 && g_guardoOneTimeCodeHandler) {
+        g_guardoOneTimeCodeHandler(digits.UTF8String);
     }
 
     return NO;
@@ -68,42 +68,42 @@ static NSString *loxley_digitsOnly(NSString *value)
 
 @end
 
-@interface UIResponder (LoxleyFirstResponder)
-- (void)loxley_reportFirstResponder:(id)sender;
+@interface UIResponder (GuardoFirstResponder)
+- (void)guardo_reportFirstResponder:(id)sender;
 @end
 
-@implementation UIResponder (LoxleyFirstResponder)
-- (void)loxley_reportFirstResponder:(id)sender
+@implementation UIResponder (GuardoFirstResponder)
+- (void)guardo_reportFirstResponder:(id)sender
 {
-    g_loxleyFirstResponder = self;
+    g_guardoFirstResponder = self;
 }
 @end
 
-static UIColor *loxley_backgroundColor()
+static UIColor *guardo_backgroundColor()
 {
     return [UIColor colorWithRed:0.01960784314 green:0.03137254902 blue:0.02745098039 alpha:1.0];
 }
 
-static UIResponder *loxley_currentFirstResponder()
+static UIResponder *guardo_currentFirstResponder()
 {
-    g_loxleyFirstResponder = nil;
-    [[UIApplication sharedApplication] sendAction:@selector(loxley_reportFirstResponder:) to:nil from:nil forEvent:nil];
-    return g_loxleyFirstResponder;
+    g_guardoFirstResponder = nil;
+    [[UIApplication sharedApplication] sendAction:@selector(guardo_reportFirstResponder:) to:nil from:nil forEvent:nil];
+    return g_guardoFirstResponder;
 }
 
-static void loxley_applyOneTimeCodeAutofill()
+static void guardo_applyOneTimeCodeAutofill()
 {
     if (@available(iOS 12.0, *)) {
-        UIResponder *responder = loxley_currentFirstResponder();
+        UIResponder *responder = guardo_currentFirstResponder();
         if (!responder) {
             return;
         }
 
         id traits = responder;
         if ([traits respondsToSelector:@selector(setTextContentType:)]) {
-            [traits setTextContentType:g_loxleyOneTimeCodeAutofillActive ? UITextContentTypeOneTimeCode : nil];
+            [traits setTextContentType:g_guardoOneTimeCodeAutofillActive ? UITextContentTypeOneTimeCode : nil];
         }
-        if (g_loxleyOneTimeCodeAutofillActive) {
+        if (g_guardoOneTimeCodeAutofillActive) {
             if ([traits respondsToSelector:@selector(setKeyboardType:)]) {
                 [traits setKeyboardType:UIKeyboardTypeNumberPad];
             }
@@ -120,7 +120,7 @@ static void loxley_applyOneTimeCodeAutofill()
     }
 }
 
-static UIWindow *loxley_keyWindow()
+static UIWindow *guardo_keyWindow()
 {
     if (@available(iOS 13.0, *)) {
         for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
@@ -140,77 +140,77 @@ static UIWindow *loxley_keyWindow()
     return [UIApplication sharedApplication].keyWindow;
 }
 
-static UITextField *loxley_ensureOneTimeCodeField()
+static UITextField *guardo_ensureOneTimeCodeField()
 {
-    if (!g_loxleyOneTimeCodeTarget) {
-        g_loxleyOneTimeCodeTarget = [[LoxleyOneTimeCodeInputTarget alloc] init];
+    if (!g_guardoOneTimeCodeTarget) {
+        g_guardoOneTimeCodeTarget = [[GuardoOneTimeCodeInputTarget alloc] init];
     }
 
-    if (!g_loxleyOneTimeCodeField) {
-        g_loxleyOneTimeCodeField = [[UITextField alloc] initWithFrame:CGRectMake(0, -120, 1, 1)];
-        g_loxleyOneTimeCodeField.textContentType = UITextContentTypeOneTimeCode;
-        g_loxleyOneTimeCodeField.keyboardType = UIKeyboardTypeNumberPad;
-        g_loxleyOneTimeCodeField.autocorrectionType = UITextAutocorrectionTypeNo;
-        g_loxleyOneTimeCodeField.spellCheckingType = UITextSpellCheckingTypeNo;
-        g_loxleyOneTimeCodeField.textColor = UIColor.clearColor;
-        g_loxleyOneTimeCodeField.tintColor = UIColor.clearColor;
-        g_loxleyOneTimeCodeField.backgroundColor = UIColor.clearColor;
-        g_loxleyOneTimeCodeField.borderStyle = UITextBorderStyleNone;
-        g_loxleyOneTimeCodeField.alpha = 0.01;
-        g_loxleyOneTimeCodeField.delegate = g_loxleyOneTimeCodeTarget;
-        [g_loxleyOneTimeCodeField addTarget:g_loxleyOneTimeCodeTarget action:@selector(textDidChange:) forControlEvents:UIControlEventEditingChanged];
+    if (!g_guardoOneTimeCodeField) {
+        g_guardoOneTimeCodeField = [[UITextField alloc] initWithFrame:CGRectMake(0, -120, 1, 1)];
+        g_guardoOneTimeCodeField.textContentType = UITextContentTypeOneTimeCode;
+        g_guardoOneTimeCodeField.keyboardType = UIKeyboardTypeNumberPad;
+        g_guardoOneTimeCodeField.autocorrectionType = UITextAutocorrectionTypeNo;
+        g_guardoOneTimeCodeField.spellCheckingType = UITextSpellCheckingTypeNo;
+        g_guardoOneTimeCodeField.textColor = UIColor.clearColor;
+        g_guardoOneTimeCodeField.tintColor = UIColor.clearColor;
+        g_guardoOneTimeCodeField.backgroundColor = UIColor.clearColor;
+        g_guardoOneTimeCodeField.borderStyle = UITextBorderStyleNone;
+        g_guardoOneTimeCodeField.alpha = 0.01;
+        g_guardoOneTimeCodeField.delegate = g_guardoOneTimeCodeTarget;
+        [g_guardoOneTimeCodeField addTarget:g_guardoOneTimeCodeTarget action:@selector(textDidChange:) forControlEvents:UIControlEventEditingChanged];
     }
 
-    UIWindow *window = loxley_keyWindow();
+    UIWindow *window = guardo_keyWindow();
     UIView *container = window.rootViewController.view ?: window;
-    if (container && g_loxleyOneTimeCodeField.superview != container) {
-        [g_loxleyOneTimeCodeField removeFromSuperview];
-        [container addSubview:g_loxleyOneTimeCodeField];
+    if (container && g_guardoOneTimeCodeField.superview != container) {
+        [g_guardoOneTimeCodeField removeFromSuperview];
+        [container addSubview:g_guardoOneTimeCodeField];
     }
 
-    return g_loxleyOneTimeCodeField;
+    return g_guardoOneTimeCodeField;
 }
 
-extern "C" void loxley_setOneTimeCodeAutofillActive(bool active)
+extern "C" void guardo_setOneTimeCodeAutofillActive(bool active)
 {
     dispatch_async(dispatch_get_main_queue(), ^{
-        g_loxleyOneTimeCodeAutofillActive = active;
+        g_guardoOneTimeCodeAutofillActive = active;
 
         if (!active) {
-            if (g_loxleyOneTimeCodeField) {
-                g_loxleyOneTimeCodeField.text = @"";
-                [g_loxleyOneTimeCodeField resignFirstResponder];
+            if (g_guardoOneTimeCodeField) {
+                g_guardoOneTimeCodeField.text = @"";
+                [g_guardoOneTimeCodeField resignFirstResponder];
             }
-            loxley_applyOneTimeCodeAutofill();
+            guardo_applyOneTimeCodeAutofill();
             return;
         }
 
-        UITextField *field = loxley_ensureOneTimeCodeField();
+        UITextField *field = guardo_ensureOneTimeCodeField();
         field.text = @"";
         field.textContentType = UITextContentTypeOneTimeCode;
         field.keyboardType = UIKeyboardTypeNumberPad;
         [field becomeFirstResponder];
-        loxley_applyOneTimeCodeAutofill();
+        guardo_applyOneTimeCodeAutofill();
 
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.12 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            [g_loxleyOneTimeCodeField becomeFirstResponder];
-            loxley_applyOneTimeCodeAutofill();
+            [g_guardoOneTimeCodeField becomeFirstResponder];
+            guardo_applyOneTimeCodeAutofill();
         });
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.35 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            [g_loxleyOneTimeCodeField becomeFirstResponder];
-            loxley_applyOneTimeCodeAutofill();
+            [g_guardoOneTimeCodeField becomeFirstResponder];
+            guardo_applyOneTimeCodeAutofill();
         });
     });
 }
 
-extern "C" void loxley_setOneTimeCodeAutofillHandler(LoxleyOneTimeCodeHandler handler)
+extern "C" void guardo_setOneTimeCodeAutofillHandler(GuardoOneTimeCodeHandler handler)
 {
     dispatch_async(dispatch_get_main_queue(), ^{
-        g_loxleyOneTimeCodeHandler = handler;
+        g_guardoOneTimeCodeHandler = handler;
     });
 }
 
-static void loxley_applyFullScreenAppearance(UIScene *scene)
+static void guardo_applyFullScreenAppearance(UIScene *scene)
 {
     if (@available(iOS 13.0, *)) {
         if (![scene isKindOfClass:[UIWindowScene class]]) {
@@ -219,7 +219,7 @@ static void loxley_applyFullScreenAppearance(UIScene *scene)
 
         dispatch_async(dispatch_get_main_queue(), ^{
             UIWindowScene *windowScene = (UIWindowScene *)scene;
-            UIColor *backgroundColor = loxley_backgroundColor();
+            UIColor *backgroundColor = guardo_backgroundColor();
             CGRect fullBounds = windowScene.screen.bounds;
 
             for (UIWindow *window in windowScene.windows) {
@@ -289,13 +289,13 @@ static void amnezia_scene_openURLContexts(id self, SEL _cmd, UIScene *scene, NSS
     }
 }
 
-static void loxley_scene_willConnectToSession(id self, SEL _cmd, UIScene *scene, UISceneSession *session, UISceneConnectionOptions *connectionOptions)
+static void guardo_scene_willConnectToSession(id self, SEL _cmd, UIScene *scene, UISceneSession *session, UISceneConnectionOptions *connectionOptions)
 {
     if (g_originalSceneWillConnectToSession) {
         g_originalSceneWillConnectToSession(self, _cmd, scene, session, connectionOptions);
     }
 
-    loxley_applyFullScreenAppearance(scene);
+    guardo_applyFullScreenAppearance(scene);
 }
 
 @interface AmneziaSceneDelegateHooks : NSObject
@@ -324,7 +324,7 @@ static void loxley_scene_willConnectToSession(id self, SEL _cmd, UIScene *scene,
     Method willConnectMethod = class_getInstanceMethod(cls, willConnectSelector);
     if (willConnectMethod) {
         g_originalSceneWillConnectToSession = reinterpret_cast<SceneWillConnectToSession>(method_getImplementation(willConnectMethod));
-        method_setImplementation(willConnectMethod, reinterpret_cast<IMP>(loxley_scene_willConnectToSession));
+        method_setImplementation(willConnectMethod, reinterpret_cast<IMP>(guardo_scene_willConnectToSession));
     }
 
 }

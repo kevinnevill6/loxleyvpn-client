@@ -23,7 +23,7 @@ import org.amnezia.vpn.util.net.TrafficStats.TrafficData
 private const val TAG = "ServiceNotification"
 
 private const val OLD_NOTIFICATION_CHANNEL_ID: String = "org.amnezia.vpn.notification"
-private const val NOTIFICATION_CHANNEL_ID: String = "com.loxleyvpn.client.notifications"
+private const val NOTIFICATION_CHANNEL_ID: String = "com.guardovpn.client.notifications"
 const val NOTIFICATION_ID = 1337
 
 private const val GET_ACTIVITY_REQUEST_CODE = 0
@@ -66,7 +66,7 @@ class ServiceNotification(private val context: Context) {
 
         return notificationBuilder
             .setSmallIcon(R.drawable.ic_amnezia_round)
-            .setContentTitle((serverName ?: "LoxleyVPN") + (protocol?.let { " $it" } ?: ""))
+            .setContentTitle((serverName ?: "GuardoVPN") + (protocol?.let { " $it" } ?: ""))
             .setContentText(context.getString(state))
             .setSubText(speedString)
             .setWhen(System.currentTimeMillis())
@@ -158,7 +158,7 @@ class ServiceNotification(private val context: Context) {
                         .setSound(null, null)
                         .setVibrationEnabled(false)
                         .setLightsEnabled(false)
-                        .setName("LoxleyVPN")
+                        .setName("GuardoVPN")
                         .setDescription(context.resources.getString(R.string.notificationChannelDescription))
                         .build()
                 )

@@ -52,8 +52,8 @@ PageType {
     readonly property color glassFillStrong: Qt.rgba(1, 1, 1, 0.13)
     readonly property color glassLine: Qt.rgba(0.78, 0.98, 0.62, 0.27)
     readonly property color glassLineStrong: Qt.rgba(0.82, 1, 0.68, 0.45)
-    readonly property color loxleyAccent: "#B7F36F"
-    readonly property color loxleyAccentSoft: "#8AD56A"
+    readonly property color guardoAccent: "#B7F36F"
+    readonly property color guardoAccentSoft: "#8AD56A"
     readonly property var fallbackServers: [
         {
             "id": "nl-awg-1",
@@ -230,7 +230,7 @@ PageType {
 
             var server = root.serverById(serverId)
             root.statusText = "Конфигурация получена"
-            root.importAndConnectConfig(config, server.title || "LoxleyVPN")
+            root.importAndConnectConfig(config, server.title || "GuardoVPN")
         }
 
         function onConfigFailed(serverId, message, statusCode) {
@@ -527,7 +527,7 @@ PageType {
                     width: parent.width
                     spacing: 0
 
-                    LoxleyTextField {
+                    GuardoTextField {
                         id: emailInput
                         width: parent.width
                         height: 60
@@ -562,7 +562,7 @@ PageType {
                             maximumLineCount: 1
                         }
 
-                        LoxleyCodeInput {
+                        GuardoCodeInput {
                             id: codeInput
                             width: parent.width
                             x: root.codeShakeOffset
@@ -587,7 +587,7 @@ PageType {
                         height: 16
                     }
 
-                    LoxleyButton {
+                    GuardoButton {
                         width: root.authStep === "code" ? Math.min(parent.width, 300) : parent.width
                         height: 60
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -607,7 +607,7 @@ PageType {
                         width: parent.width
                         visible: root.authStep === "code"
                         text: "Изменить email"
-                        color: root.loxleyAccent
+                        color: root.guardoAccent
                         font.pixelSize: 14
                         horizontalAlignment: Text.AlignHCenter
 
@@ -633,7 +633,7 @@ PageType {
                     Text {
                         width: parent.width
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "Нажимая «Продолжить», вы соглашаетесь с условиями использования и политикой конфиденциальности LoxleyVPN."
+                        text: "Нажимая «Продолжить», вы соглашаетесь с условиями использования и политикой конфиденциальности GuardoVPN."
                         color: "#B9C5BE"
                         font.pixelSize: 13
                         lineHeight: 1.18
@@ -655,7 +655,7 @@ PageType {
             }
         }
 
-        LoxleyButton {
+        GuardoButton {
             width: Math.min(parent.width - 96, 158)
             height: 42
             anchors.horizontalCenter: parent.horizontalCenter
@@ -703,13 +703,13 @@ PageType {
                     anchors.horizontalCenter: parent.horizontalCenter
                     radius: 24
                     color: Qt.rgba(0.72, 0.95, 0.44, 0.14)
-                    border.color: root.loxleyAccent
+                    border.color: root.guardoAccent
                     border.width: 1
 
                     Text {
                         anchors.centerIn: parent
                         text: "!"
-                        color: root.loxleyAccent
+                        color: root.guardoAccent
                         font.pixelSize: 25
                         font.weight: Font.DemiBold
                     }
@@ -735,7 +735,7 @@ PageType {
                     wrapMode: Text.WordWrap
                 }
 
-                LoxleyButton {
+                GuardoButton {
                     width: Math.min(parent.width, 260)
                     height: 48
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -754,7 +754,7 @@ PageType {
                 Text {
                     width: parent.width
                     text: "Понятно"
-                    color: root.loxleyAccent
+                    color: root.guardoAccent
                     font.pixelSize: 14
                     horizontalAlignment: Text.AlignHCenter
 
@@ -1402,7 +1402,7 @@ PageType {
                                     width: parent.width - 88
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: root.serverDisplayTitle(modelData)
-                                    color: root.serverIndexById(modelData.id) === root.selectedServerIndex ? root.loxleyAccent : "#F7FBFF"
+                                    color: root.serverIndexById(modelData.id) === root.selectedServerIndex ? root.guardoAccent : "#F7FBFF"
                                     font.family: "sans-serif-medium"
                                     font.pixelSize: 15
                                     font.weight: Font.DemiBold
@@ -1705,7 +1705,7 @@ PageType {
                         }
                     }
 
-                    LoxleyButton {
+                    GuardoButton {
                         id: subscriptionActionButton
 
                         width: AppApiController.authenticated && root.appUserCanConnect() ? 82 : 94
@@ -1823,7 +1823,7 @@ PageType {
                 id: copyrightLabel
 
                 width: parent.width
-                text: "© 2026 LoxleyVPN"
+                text: "© 2026 GuardoVPN"
                 color: "#6F8174"
                 font.pixelSize: 10
                 horizontalAlignment: Text.AlignHCenter
@@ -1978,7 +1978,7 @@ PageType {
                 height: Math.max(74, Math.min(210, settingsFreeSpace * 0.68))
             }
 
-            LoxleyButton {
+            GuardoButton {
                 id: settingsBackButton
 
                 width: Math.min(parent.width * 0.52, 210)
@@ -2009,7 +2009,7 @@ PageType {
                 id: settingsCopyrightLabel
 
                 width: parent.width
-                text: "© 2026 LoxleyVPN"
+                text: "© 2026 GuardoVPN"
                 color: "#6F8174"
                 font.pixelSize: 10
                 horizontalAlignment: Text.AlignHCenter
@@ -2104,7 +2104,7 @@ PageType {
 
     function requireActiveSubscription() {
         root.statusText = "Подписка не активна"
-        root.showToast("Оформите доступ на сайте LoxleyVPN или в Telegram-боте")
+        root.showToast("Оформите доступ на сайте GuardoVPN или в Telegram-боте")
         root.currentTab = root.tabProfile
     }
 
@@ -2316,7 +2316,7 @@ PageType {
 
     function protocolLabel(protocol) {
         if (protocol === "amnezia_wg") {
-            return "LoxleyWG"
+            return "GuardoWG"
         }
         if (protocol === "xray_vless_reality") {
             return "Xray"
@@ -2451,7 +2451,7 @@ PageType {
             }
             return deviceText.length > 0 ? deviceText : "Можно подключаться к VPN."
         }
-        return "Оформите доступ на сайте LoxleyVPN или в Telegram-боте."
+        return "Оформите доступ на сайте GuardoVPN или в Telegram-боте."
     }
 
     function shortDate(value) {
@@ -2639,7 +2639,7 @@ PageType {
             anchors.top: parent.top
             width: 88
             height: 88
-            source: "qrc:/images/loxleyvpnLogoLockup.png"
+            source: "qrc:/images/guardovpnLogoLockup.png"
             sourceClipRect: Qt.rect(0, 0, 300, 310)
             fillMode: Image.PreserveAspectFit
             smooth: true
@@ -2825,7 +2825,7 @@ PageType {
             radius: 13
             anchors.verticalCenter: parent.verticalCenter
             x: miniToggleRoot.checked ? parent.width - width - 4 : 4
-            color: miniToggleRoot.checked ? root.loxleyAccent : "#B8C9B3"
+            color: miniToggleRoot.checked ? root.guardoAccent : "#B8C9B3"
 
             Behavior on x {
                 NumberAnimation {
@@ -2845,7 +2845,7 @@ PageType {
         id: sortGlyphRoot
 
         property bool ascending: true
-        property color activeColor: root.loxleyAccent
+        property color activeColor: root.guardoAccent
         property color inactiveColor: "#9AAFA0"
 
         onAscendingChanged: requestPaint()
@@ -2984,7 +2984,7 @@ PageType {
         }
     }
 
-    component LoxleyButton: Rectangle {
+    component GuardoButton: Rectangle {
         id: buttonRoot
 
         property string text: ""
@@ -3019,7 +3019,7 @@ PageType {
         }
     }
 
-    component LoxleyChip: Rectangle {
+    component GuardoChip: Rectangle {
         id: chipRoot
 
         property string text: ""
@@ -3044,7 +3044,7 @@ PageType {
         }
     }
 
-    component LoxleyTextField: Rectangle {
+    component GuardoTextField: Rectangle {
         id: fieldRoot
 
         property alias text: input.text
@@ -3097,7 +3097,7 @@ PageType {
         }
     }
 
-    component LoxleyCodeInput: Item {
+    component GuardoCodeInput: Item {
         id: codeRoot
 
         property alias text: hiddenInput.text
@@ -3273,7 +3273,7 @@ PageType {
                 ColorOverlay {
                     anchors.fill: parent
                     source: navIcon
-                    color: navRoot.active ? root.loxleyAccent : "#7E8F82"
+                    color: navRoot.active ? root.guardoAccent : "#7E8F82"
                     opacity: navRoot.active ? 1 : 0.78
                 }
             }
@@ -3310,7 +3310,7 @@ PageType {
                 height: 8 + index * 4
                 radius: 3
                 y: barsRoot.height - height
-                color: index < barsRoot.quality ? root.loxleyAccent : "#4E5F53"
+                color: index < barsRoot.quality ? root.guardoAccent : "#4E5F53"
             }
         }
     }
@@ -3327,7 +3327,7 @@ PageType {
             onPaint: {
                 var ctx = getContext("2d")
                 ctx.clearRect(0, 0, width, height)
-                ctx.strokeStyle = root.loxleyAccent
+                ctx.strokeStyle = root.guardoAccent
                 ctx.lineWidth = 1.55
                 ctx.lineJoin = "round"
                 ctx.lineCap = "round"

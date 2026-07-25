@@ -184,12 +184,12 @@ void SecureAppSettingsRepository::setSitesSplitTunnelingEnabled(bool enabled)
 
 bool SecureAppSettingsRepository::isRussianServicesBypassEnabled() const
 {
-    return value("Conf/loxleyRussianServicesBypassEnabled", true).toBool();
+    return value("Conf/guardoRussianServicesBypassEnabled", true).toBool();
 }
 
 void SecureAppSettingsRepository::setRussianServicesBypassEnabled(bool enabled)
 {
-    setValue("Conf/loxleyRussianServicesBypassEnabled", enabled);
+    setValue("Conf/guardoRussianServicesBypassEnabled", enabled);
     emit russianServicesBypassEnabledChanged(enabled);
 }
 

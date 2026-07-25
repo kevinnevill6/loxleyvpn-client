@@ -20,7 +20,7 @@
     #include "platforms/ios/ios_controller.h"
 #endif
 
-#if defined(Q_OS_IOS) && !defined(LOXLEY_IOS_UI_ONLY)
+#if defined(Q_OS_IOS) && !defined(GUARDO_IOS_UI_ONLY)
     #include <AmneziaVPN-Swift.h>
 #endif
 
@@ -261,7 +261,7 @@ void CoreController::initAppleController()
 {
 #ifdef Q_OS_IOS
     IosController::Instance()->initialize();
-#ifndef LOXLEY_IOS_UI_ONLY
+#ifndef GUARDO_IOS_UI_ONLY
     QTimer::singleShot(0, this, [this]() { AmneziaVPN::toggleScreenshots(m_appSettingsRepository->isScreenshotsEnabled()); });
 #endif
 #endif

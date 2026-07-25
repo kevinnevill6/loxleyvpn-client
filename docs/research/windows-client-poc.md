@@ -1,4 +1,4 @@
-# LoxleyVPN Windows Client PoC
+# GuardoVPN Windows Client PoC
 
 ## Status
 
@@ -26,7 +26,7 @@ The Amnezia-based client already contains Windows-specific code:
 - `cmake/CPack.cmake` - Windows installer packaging through IFW/WiX.
 - `deploy/data/windows/` - Windows post-install and uninstall hooks.
 
-The shared LoxleyVPN QML/App API layer should be reusable on Windows:
+The shared GuardoVPN QML/App API layer should be reusable on Windows:
 
 - email login;
 - one-time code flow;
@@ -118,7 +118,7 @@ For a tester or a temporary Windows PC:
 - local administrator rights;
 - normal internet connection;
 - no corporate VPN/proxy/firewall restrictions if possible;
-- install/run LoxleyVPN build;
+- install/run GuardoVPN build;
 - app opens without crash;
 - email login works;
 - code verification works;

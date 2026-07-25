@@ -70,6 +70,6 @@ jobs:
       - name: Upload Windows build folder
         uses: actions/upload-artifact@v7
         with:
-          name: LoxleyVPN-windows-x64-${{ inputs.build_config }}
+          name: GuardoVPN-windows-x64-${{ inputs.build_config }}
           path: deploy/build/client/${{ inputs.build_config }}/
           retention-days: 7

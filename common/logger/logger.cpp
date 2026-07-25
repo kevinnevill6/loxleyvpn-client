@@ -16,7 +16,7 @@
     #include <core/utils/ipcClient.h>
 #endif
 
-#if defined(Q_OS_IOS) && !defined(LOXLEY_IOS_UI_ONLY)
+#if defined(Q_OS_IOS) && !defined(GUARDO_IOS_UI_ONLY)
     #include <AmneziaVPN-Swift.h>
 #endif
 
@@ -145,7 +145,7 @@ QString Logger::getLogFile()
     file.open(QIODevice::ReadOnly);
     QString qtLog = file.readAll();
 
-#if defined(Q_OS_IOS) && !defined(LOXLEY_IOS_UI_ONLY)
+#if defined(Q_OS_IOS) && !defined(GUARDO_IOS_UI_ONLY)
     return QString().fromStdString(AmneziaVPN::swiftUpdateLogData(qtLog.toStdString()));
 #else
     return qtLog;
@@ -162,7 +162,7 @@ QString Logger::getServiceLogFile()
     file.open(QIODevice::ReadOnly);
     QString qtLog = file.readAll();
 
-#if defined(Q_OS_IOS) && !defined(LOXLEY_IOS_UI_ONLY)
+#if defined(Q_OS_IOS) && !defined(GUARDO_IOS_UI_ONLY)
     return QString().fromStdString(AmneziaVPN::swiftUpdateLogData(qtLog.toStdString()));
 #else
     return qtLog;
@@ -193,7 +193,7 @@ void Logger::clearLogs(bool isServiceLogger)
     file.resize(0);
     file.close();
 
-#if defined(Q_OS_IOS) && !defined(LOXLEY_IOS_UI_ONLY)
+#if defined(Q_OS_IOS) && !defined(GUARDO_IOS_UI_ONLY)
     AmneziaVPN::swiftDeleteLog();
 #endif
 

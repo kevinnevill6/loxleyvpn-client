@@ -16,7 +16,7 @@
     #include "platforms/android/android_controller.h"
 #endif
 
-#if (defined(Q_OS_IOS) && !defined(LOXLEY_IOS_UI_ONLY)) || defined(MACOS_NE)
+#if (defined(Q_OS_IOS) && !defined(GUARDO_IOS_UI_ONLY)) || defined(MACOS_NE)
     #include <AmneziaVPN-Swift.h>
 #endif
 
@@ -80,7 +80,7 @@ bool SettingsUiController::isLoggingEnabled()
 void SettingsUiController::toggleLogging(bool enable)
 {
     m_settingsController->toggleLogging(enable);
-#if defined(Q_OS_IOS) && !defined(LOXLEY_IOS_UI_ONLY)
+#if defined(Q_OS_IOS) && !defined(GUARDO_IOS_UI_ONLY)
     AmneziaVPN::toggleLogging(enable);
 #endif
     if (enable == true) {
@@ -182,7 +182,7 @@ void SettingsUiController::clearSettings()
 
     emit changeSettingsFinished(tr("All settings have been reset to default values"));
 
-#if (defined(Q_OS_IOS) && !defined(LOXLEY_IOS_UI_ONLY)) || defined(MACOS_NE)
+#if (defined(Q_OS_IOS) && !defined(GUARDO_IOS_UI_ONLY)) || defined(MACOS_NE)
     AmneziaVPN::clearSettings();
 #endif
 }

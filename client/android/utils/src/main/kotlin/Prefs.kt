@@ -8,7 +8,7 @@ import androidx.security.crypto.MasterKey
 import kotlin.reflect.typeOf
 
 private const val TAG = "Prefs"
-private const val PREFS_FILE = "com.loxleyvpn.client.prefs"
+private const val PREFS_FILE = "com.guardovpn.client.prefs"
 private const val SECURE_PREFS_FILE = "$PREFS_FILE.secure"
 
 object Prefs {

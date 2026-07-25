@@ -10,7 +10,7 @@
 
 #include "../core/protocols/vpnProtocol.h"
 #import "ios_controller_wrapper.h"
-#if !defined(LOXLEY_IOS_UI_ONLY)
+#if !defined(GUARDO_IOS_UI_ONLY)
     #import "StoreKitController.h"
 #endif
 
@@ -149,7 +149,7 @@ IosController::IosController() : QObject()
     m_iosControllerWrapper = [[IosControllerWrapper alloc] initWithCppController:this];
 
     // Initialize StoreKitController early to start observing the payment queue.
-#if !defined(LOXLEY_IOS_UI_ONLY)
+#if !defined(GUARDO_IOS_UI_ONLY)
     [StoreKitController sharedInstance];
 #endif
 
@@ -1047,7 +1047,7 @@ void IosController::purchaseProduct(const QString &productId,
                                                       const QString &originalTransactionId,
                                                       const QString &errorString)> &&callback)
 {
-#if defined(LOXLEY_IOS_UI_ONLY)
+#if defined(GUARDO_IOS_UI_ONLY)
     Q_UNUSED(productId);
     if (callback) {
         callback(false, QString(), QString(), QString(), "StoreKit is disabled for UI-only build");
@@ -1088,7 +1088,7 @@ void IosController::restorePurchases(std::function<void(bool success,
                                                        const QList<QVariantMap> &transactions,
                                                        const QString &errorString)> &&callback)
 {
-#if defined(LOXLEY_IOS_UI_ONLY)
+#if defined(GUARDO_IOS_UI_ONLY)
     if (callback) {
         callback(false, QList<QVariantMap>(), "StoreKit is disabled for UI-only build");
     }
@@ -1140,7 +1140,7 @@ void IosController::fetchProducts(const QStringList &productIds,
                                                      const QStringList &invalidIds,
                                                      const QString &errorString)> &&callback)
 {
-#if defined(LOXLEY_IOS_UI_ONLY)
+#if defined(GUARDO_IOS_UI_ONLY)
     Q_UNUSED(productIds);
     if (callback) {
         callback(QList<QVariantMap>(), QStringList(), "StoreKit is disabled for UI-only build");

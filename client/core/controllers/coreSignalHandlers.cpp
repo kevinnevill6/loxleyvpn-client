@@ -49,7 +49,7 @@
     #include "platforms/ios/ios_controller.h"
 #endif
 
-#if defined(Q_OS_IOS) && !defined(LOXLEY_IOS_UI_ONLY)
+#if defined(Q_OS_IOS) && !defined(GUARDO_IOS_UI_ONLY)
     #include <AmneziaVPN-Swift.h>
 #endif
 
@@ -410,7 +410,7 @@ void CoreSignalHandlers::initIosImportHandler()
 
 void CoreSignalHandlers::initIosSettingsHandler()
 {
-#if defined(Q_OS_IOS) && !defined(LOXLEY_IOS_UI_ONLY)
+#if defined(Q_OS_IOS) && !defined(GUARDO_IOS_UI_ONLY)
     connect(m_coreController->m_appSettingsRepository, &SecureAppSettingsRepository::screenshotsEnabledChanged, [](bool enabled) { AmneziaVPN::toggleScreenshots(enabled); });
 #endif
 }

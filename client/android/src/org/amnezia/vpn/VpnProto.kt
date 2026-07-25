@@ -13,7 +13,7 @@ enum class VpnProto(
 ) {
     WIREGUARD(
         "WireGuard",
-        "com.loxleyvpn.client:amneziaAwgService",
+        "com.guardovpn.client:amneziaAwgService",
         AwgService::class.java
     ) {
         override fun createProtocol(): Protocol = Wireguard()
@@ -21,7 +21,7 @@ enum class VpnProto(
 
     AWG(
         "AmneziaWG",
-        "com.loxleyvpn.client:amneziaAwgService",
+        "com.guardovpn.client:amneziaAwgService",
         AwgService::class.java
     ) {
         override fun createProtocol(): Protocol = Awg()
@@ -29,7 +29,7 @@ enum class VpnProto(
 
     OPENVPN(
         "OpenVPN",
-        "com.loxleyvpn.client:amneziaOpenVpnService",
+        "com.guardovpn.client:amneziaOpenVpnService",
         OpenVpnService::class.java
     ) {
         override fun createProtocol(): Protocol = OpenVpn()
@@ -37,7 +37,7 @@ enum class VpnProto(
 
     XRAY(
         "XRay",
-        "com.loxleyvpn.client:amneziaXrayService",
+        "com.guardovpn.client:amneziaXrayService",
         XrayService::class.java
     ) {
         override fun createProtocol(): Protocol = Xray.instance
@@ -45,7 +45,7 @@ enum class VpnProto(
 
     SSXRAY(
         "SSXRay",
-        "com.loxleyvpn.client:amneziaXrayService",
+        "com.guardovpn.client:amneziaXrayService",
         XrayService::class.java
     ) {
         override fun createProtocol(): Protocol = Xray.instance

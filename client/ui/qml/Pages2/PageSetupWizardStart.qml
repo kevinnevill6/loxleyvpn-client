@@ -25,7 +25,7 @@ PageType {
             id: image
             property real logoWidth: Math.max(220, Math.min(root.width - 64, 360))
 
-            source: "qrc:/images/loxleyvpnLogoLockup.png"
+            source: "qrc:/images/guardovpnLogoLockup.png"
 
             Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             Layout.topMargin: 32 + PageController.safeAreaTopMargin

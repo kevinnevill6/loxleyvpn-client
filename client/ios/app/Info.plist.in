@@ -74,7 +74,7 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>LoxleyVPN needs access to the camera for reading QR-codes.</string>
+	<string>GuardoVPN needs access to the camera for reading QR-codes.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
@@ -94,11 +94,11 @@
 				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>LoxleyVPN config</string>
+			<string>GuardoVPN config</string>
 			<key>UTTypeIconFiles</key>
 			<array/>
 			<key>UTTypeIdentifier</key>
-			<string>${BUILD_IOS_APP_IDENTIFIER}.loxleyvpn-config</string>
+			<string>${BUILD_IOS_APP_IDENTIFIER}.guardovpn-config</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>

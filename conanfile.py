@@ -16,7 +16,7 @@ class AmneziaVPN(ConanFile):
     def requirements(self):
         os = str(self.settings.os)
 
-        ios_ui_only = os == "iOS" and py_os.environ.get("LOXLEY_IOS_UI_ONLY", "").lower() in ("1", "on", "true", "yes")
+        ios_ui_only = os == "iOS" and py_os.environ.get("GUARDO_IOS_UI_ONLY", "").lower() in ("1", "on", "true", "yes")
         has_ne = (os == "iOS" and not ios_ui_only) or (os == "Macos" and self.options.macos_ne)
         has_service = os == "Windows" or os == "Linux" or (os == "Macos" and not has_ne)
 

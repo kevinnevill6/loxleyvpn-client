@@ -19,12 +19,12 @@
 #include "version.h"
 
 #if defined(Q_OS_IOS)
-extern "C" void loxley_setOneTimeCodeAutofillActive(bool active);
-extern "C" void loxley_setOneTimeCodeAutofillHandler(void (*handler)(const char *code));
+extern "C" void guardo_setOneTimeCodeAutofillActive(bool active);
+extern "C" void guardo_setOneTimeCodeAutofillHandler(void (*handler)(const char *code));
 
-QPointer<AppApiUiController> g_loxleyAppApiController;
+QPointer<AppApiUiController> g_guardoAppApiController;
 
-void loxley_handleOneTimeCodeAutofill(const char *code)
+void guardo_handleOneTimeCodeAutofill(const char *code)
 {
     const QString codeText = QString::fromUtf8(code).trimmed();
     if (codeText.isEmpty()) {
@@ -32,15 +32,15 @@ void loxley_handleOneTimeCodeAutofill(const char *code)
     }
 
     QMetaObject::invokeMethod(qApp, [codeText]() {
-        if (g_loxleyAppApiController) {
-            emit g_loxleyAppApiController->oneTimeCodeReceived(codeText);
+        if (g_guardoAppApiController) {
+            emit g_guardoAppApiController->oneTimeCodeReceived(codeText);
         }
     }, Qt::QueuedConnection);
 }
 #endif
 
-#ifndef LOXLEY_APP_API_BASE_URL
-#define LOXLEY_APP_API_BASE_URL "https://staging.loxleyvpn.ru"
+#ifndef GUARDO_APP_API_BASE_URL
+#define GUARDO_APP_API_BASE_URL "https://staging.guardovpn.com"
 #endif
 
 namespace
@@ -93,7 +93,7 @@ namespace
     QString stableDeviceUuid()
     {
         QSettings settings;
-        const QString key = QStringLiteral("loxley/appApiDeviceUuid");
+        const QString key = QStringLiteral("guardo/appApiDeviceUuid");
         QString uuid = settings.value(key).toString().trimmed();
         if (uuid.isEmpty()) {
             uuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -104,10 +104,10 @@ namespace
         return uuid;
     }
 
-    constexpr auto kBaseUrlKey = "loxley/appApiBaseUrl";
-    constexpr auto kTokenKey = "loxley/appApiToken";
-    constexpr auto kUserKey = "loxley/appApiUser";
-    constexpr auto kServersKey = "loxley/appApiServers";
+    constexpr auto kBaseUrlKey = "guardo/appApiBaseUrl";
+    constexpr auto kTokenKey = "guardo/appApiToken";
+    constexpr auto kUserKey = "guardo/appApiUser";
+    constexpr auto kServersKey = "guardo/appApiServers";
 
     QVariantMap variantMapFromJson(const QByteArray &json)
     {
@@ -134,17 +134,17 @@ namespace
 
 AppApiUiController::AppApiUiController(QObject *parent)
     : QObject(parent),
-      m_baseUrl(normalizedBaseUrl(QStringLiteral(LOXLEY_APP_API_BASE_URL))),
+      m_baseUrl(normalizedBaseUrl(QStringLiteral(GUARDO_APP_API_BASE_URL))),
       m_deviceUuid(stableDeviceUuid())
 {
     restoreSession();
 
 #if defined(Q_OS_IOS)
-    g_loxleyAppApiController = this;
-    loxley_setOneTimeCodeAutofillHandler(loxley_handleOneTimeCodeAutofill);
+    g_guardoAppApiController = this;
+    guardo_setOneTimeCodeAutofillHandler(guardo_handleOneTimeCodeAutofill);
     connect(this, &QObject::destroyed, this, []() {
-        g_loxleyAppApiController = nullptr;
-        loxley_setOneTimeCodeAutofillHandler(nullptr);
+        g_guardoAppApiController = nullptr;
+        guardo_setOneTimeCodeAutofillHandler(nullptr);
     });
 #endif
 }
@@ -519,7 +519,7 @@ void AppApiUiController::useMockMode()
 void AppApiUiController::setOneTimeCodeAutofillActive(bool active)
 {
 #if defined(Q_OS_IOS)
-    loxley_setOneTimeCodeAutofillActive(active);
+    guardo_setOneTimeCodeAutofillActive(active);
 #else
     Q_UNUSED(active);
 #endif
