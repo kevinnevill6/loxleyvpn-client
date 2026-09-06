@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Accessibility
 import QtQuick.Controls
 import QtQuick.Layouts
 import Style 1.0
