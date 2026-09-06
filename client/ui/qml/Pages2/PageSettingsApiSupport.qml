@@ -17,11 +17,25 @@ PageType {
     id: root
 
     QtObject {
-        id: telegram
+        id: telegramBot
 
-        readonly property string title: qsTr("Telegram")
-        readonly property string description: "@" + ApiAccountInfoModel.getTelegramBotLink()
-        readonly property string link: "https://t.me/" + ApiAccountInfoModel.getTelegramBotLink()
+        readonly property string configuredUsername: ApiAccountInfoModel.getTelegramBotLink().replace(/^@/, "")
+        readonly property string username: configuredUsername !== "" ? configuredUsername : "onvixx_vpn_bot"
+        readonly property string title: qsTr("Telegram bot")
+        readonly property string description: qsTr("Subscription, invitations and bonuses")
+        readonly property string imageSource: "qrc:/images/controls/telegram-brand.svg"
+        readonly property string link: "https://t.me/" + username
+    }
+
+    QtObject {
+        id: telegramChannel
+
+        readonly property string configuredUsername: ApiAccountInfoModel.getTelegramChannelLink().replace(/^@/, "")
+        readonly property string username: configuredUsername !== "" ? configuredUsername : "onvixxvpn"
+        readonly property string title: qsTr("ONVIXX channel")
+        readonly property string description: qsTr("News and important updates")
+        readonly property string imageSource: "qrc:/images/controls/telegram-brand.svg"
+        readonly property string link: "https://t.me/" + username
     }
 
     QtObject {
@@ -29,6 +43,7 @@ PageType {
 
         readonly property string title: qsTr("Email")
         readonly property string description: ApiAccountInfoModel.getEmailLink()
+        readonly property string imageSource: "qrc:/images/controls/mail.svg"
         readonly property string link: "mailto:" + ApiAccountInfoModel.getEmailLink()
     }
 
@@ -37,6 +52,7 @@ PageType {
 
         readonly property string title: qsTr("Email Billing & Orders")
         readonly property string description: ApiAccountInfoModel.getBillingEmailLink()
+        readonly property string imageSource: "qrc:/images/controls/mail.svg"
         readonly property string link: "mailto:" + ApiAccountInfoModel.getBillingEmailLink()
     }
 
@@ -45,11 +61,13 @@ PageType {
 
         readonly property string title: qsTr("Website")
         readonly property string description: ApiAccountInfoModel.getSiteLink()
+        readonly property string imageSource: "qrc:/images/controls/external-link.svg"
         readonly property string link: ApiAccountInfoModel.getFullSiteLink()
     }
 
     property list<QtObject> supportModel: [
-        telegram,
+        telegramBot,
+        telegramChannel,
         techSupport,
         paymentSupport,
         site
@@ -91,6 +109,8 @@ PageType {
                 visible: link !== ""
                 text: title
                 descriptionText: description
+                leftImageSource: imageSource
+                leftImageColor: ""
                 rightImageSource: "qrc:/images/controls/external-link.svg"
                 clickedFunction: function() {
                     Qt.openUrlExternally(link)

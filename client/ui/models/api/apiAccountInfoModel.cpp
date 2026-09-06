@@ -171,6 +171,11 @@ QString ApiAccountInfoModel::getTelegramBotLink()
     return m_supportInfo.value(apiDefs::key::telegram).toString();
 }
 
+QString ApiAccountInfoModel::getTelegramChannelLink()
+{
+    return m_supportInfo.value(apiDefs::key::telegramChannel).toString();
+}
+
 QString ApiAccountInfoModel::getEmailLink()
 {
     return m_supportInfo.value(apiDefs::key::email).toString();

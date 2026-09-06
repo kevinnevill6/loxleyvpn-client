@@ -1,8 +1,7 @@
 import QtQuick
+import QtQuick.Accessibility
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Shapes
-
 import Style 1.0
 
 import "../Config"
@@ -14,6 +13,18 @@ Rectangle {
 
     property real contentHeight: content.implicitHeight + content.anchors.topMargin + content.anchors.bottomMargin
     property bool isFocusable: true
+    property bool hasRemotePromotion: ServersUiController.isAdVisible
+                                      && ServersUiController.adHeader !== ""
+                                      && ServersUiController.serverAdEndpoint(ServersUiController.defaultServerId) !== ""
+    property string promotionTitle: hasRemotePromotion
+                                      ? ServersUiController.adHeader
+                                      : qsTr("Invite a friend — get +7 days")
+    property string promotionDescription: hasRemotePromotion
+                                            ? ServersUiController.adDescription
+                                            : qsTr("Your friend gets 30 days free. Send a card in Telegram or publish it to your story.")
+    property string promotionUrl: hasRemotePromotion
+                                    ? ServersUiController.serverAdEndpoint(ServersUiController.defaultServerId)
+                                    : "https://t.me/onvixx_vpn_bot"
 
     gradient: Gradient {
         orientation: Gradient.Horizontal
@@ -24,7 +35,9 @@ Rectangle {
     border.color: AmneziaStyle.color.onyxBlack
     radius: 13
 
-    visible: ServersUiController.isAdVisible
+    visible: SettingsController.isHomeAdLabelVisible
+             && ServersUiController.isDefaultServerFromApi
+             && !ConnectionController.isConnectionInProgress
 
     Keys.onTabPressed: {
         FocusController.nextKeyTabItem()
@@ -51,21 +64,30 @@ Rectangle {
     }
 
     Keys.onEnterPressed: {
-        Qt.openUrlExternally(ServersUiController.serverAdEndpoint(ServersUiController.defaultServerId))
+        Qt.openUrlExternally(promotionUrl)
     }
 
     Keys.onReturnPressed: {
-        Qt.openUrlExternally(ServersUiController.serverAdEndpoint(ServersUiController.defaultServerId))
+        Qt.openUrlExternally(promotionUrl)
     }
 
     RowLayout {
         id: content
         anchors.fill: parent
         anchors.leftMargin: 16
-        anchors.rightMargin: 12
+        anchors.rightMargin: 52
         anchors.topMargin: 12
         anchors.bottomMargin: 12
-        spacing: 20
+        spacing: 12
+
+        Image {
+            Layout.preferredWidth: 36
+            Layout.preferredHeight: 36
+            Layout.alignment: Qt.AlignVCenter
+            source: "qrc:/images/controls/telegram-brand.svg"
+            sourceSize: Qt.size(36, 36)
+            fillMode: Image.PreserveAspectFit
+        }
 
         ColumnLayout {
             Layout.fillWidth: true
@@ -73,17 +95,17 @@ Rectangle {
 
             CaptionTextType {
                 Layout.fillWidth: true
-                text: ServersUiController.adHeader
+                text: root.promotionTitle
                 color: AmneziaStyle.color.paleGray
                 font.pixelSize: 14
                 font.weight: 700
-
-                textFormat: Text.RichText
+                textFormat: Text.PlainText
+                wrapMode: Text.WordWrap
             }
 
             CaptionTextType {
                 Layout.fillWidth: true
-                text: ServersUiController.adDescription
+                text: root.promotionDescription
                 color: AmneziaStyle.color.mutedGray
                 wrapMode: Text.WordWrap
                 lineHeight: 18
@@ -94,34 +116,6 @@ Rectangle {
             }
         }
 
-        Item {
-            implicitWidth: 40
-            implicitHeight: 40
-            Layout.alignment: Qt.AlignVCenter
-
-            Rectangle {
-                id: chevronBackground
-                anchors.fill: parent
-                radius: 12
-                color: AmneziaStyle.color.transparent
-                border.width: root.activeFocus ? 1 : 0
-                border.color: AmneziaStyle.color.paleGray
-
-                Behavior on color {
-                    PropertyAnimation { duration: 200 }
-                }
-
-                Behavior on border.width {
-                    PropertyAnimation { duration: 200 }
-                }
-            }
-
-            Image {
-                anchors.centerIn: parent
-                source: "qrc:/images/controls/chevron-right.svg"
-                sourceSize: Qt.size(24, 24)
-            }
-        }
     }
 
     MouseArea {
@@ -131,20 +125,43 @@ Rectangle {
         hoverEnabled: true
 
         onEntered: {
-            chevronBackground.color = AmneziaStyle.color.slateGray
+            root.border.color = AmneziaStyle.color.slateGray
         }
 
         onExited: {
-            chevronBackground.color = AmneziaStyle.color.transparent
+            root.border.color = AmneziaStyle.color.onyxBlack
         }
 
         onPressedChanged: {
-            chevronBackground.color = pressed ? AmneziaStyle.color.charcoalGray : containsMouse ? AmneziaStyle.color.slateGray : AmneziaStyle.color.transparent
+            root.opacity = pressed ? 0.78 : 1
         }
 
         onClicked: function() {
             root.forceActiveFocus()
-            Qt.openUrlExternally(ServersUiController.serverAdEndpoint(ServersUiController.defaultServerId))
+            Qt.openUrlExternally(root.promotionUrl)
+        }
+    }
+
+    ImageButtonType {
+        id: closeButton
+
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.topMargin: 8
+        anchors.rightMargin: 8
+        width: 36
+        height: 36
+        z: 2
+
+        image: "qrc:/images/controls/close.svg"
+        imageColor: AmneziaStyle.color.mutedGray
+        icon.width: 18
+        icon.height: 18
+
+        Accessible.name: qsTr("Hide referral offer")
+
+        onClicked: {
+            SettingsController.disableHomeAdLabel()
         }
     }
 }

@@ -62,6 +62,7 @@
         <file>controls/smartphone.svg</file>
         <file>controls/tag.svg</file>
         <file>controls/telegram.svg</file>
+        <file>controls/telegram-brand.svg</file>
         <file>controls/text-cursor.svg</file>
         <file>controls/trash.svg</file>
         <file>controls/x-circle.svg</file>
@@ -71,4 +72,3 @@
         <file>controls/monitor.svg</file>
     </qresource>
 </RCC>
-

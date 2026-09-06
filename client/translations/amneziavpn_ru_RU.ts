@@ -2176,11 +2176,44 @@ Thank you for staying with us!</source>
     </message>
 </context>
 <context>
+    <name>AdLabel</name>
+    <message>
+        <location filename="../ui/qml/Components/AdLabel.qml" line="19"/>
+        <source>Invite a friend — get +7 days</source>
+        <translation>Пригласите друга — получите +7 дней</translation>
+    </message>
+    <message>
+        <location filename="../ui/qml/Components/AdLabel.qml" line="22"/>
+        <source>Your friend gets 30 days free. Send a card in Telegram or publish it to your story.</source>
+        <translation>Друг получит 30 дней бесплатно. Отправьте карточку в Telegram или опубликуйте её в истории.</translation>
+    </message>
+    <message>
+        <location filename="../ui/qml/Components/AdLabel.qml" line="161"/>
+        <source>Hide referral offer</source>
+        <translation>Скрыть предложение</translation>
+    </message>
+</context>
+<context>
     <name>PageSettingsApiSupport</name>
     <message>
         <location filename="../ui/qml/Pages2/PageSettingsApiSupport.qml" line="22"/>
-        <source>Telegram</source>
-        <translation>Telegram</translation>
+        <source>Telegram bot</source>
+        <translation>Telegram-бот</translation>
+    </message>
+    <message>
+        <location filename="../ui/qml/Pages2/PageSettingsApiSupport.qml" line="23"/>
+        <source>Subscription, invitations and bonuses</source>
+        <translation>Подписка, приглашения и бонусы</translation>
+    </message>
+    <message>
+        <location filename="../ui/qml/Pages2/PageSettingsApiSupport.qml" line="34"/>
+        <source>ONVIXX channel</source>
+        <translation>Канал ONVIXX</translation>
+    </message>
+    <message>
+        <location filename="../ui/qml/Pages2/PageSettingsApiSupport.qml" line="35"/>
+        <source>News and important updates</source>
+        <translation>Новости и важные обновления</translation>
     </message>
     <message>
         <location filename="../ui/qml/Pages2/PageSettingsApiSupport.qml" line="30"/>
